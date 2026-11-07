@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, doc, setDoc, onSnapshot, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, onSnapshot, updateDoc, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
 import { db, OperationType, handleFirestoreError } from './lib/firebase';
 import { TabType, Medicine, Invoice, CartItem, ShiftInfo } from './types';
 import { initialShift, velocityData, aiForecastData } from './mockData';
@@ -13,6 +13,8 @@ import { AiAssistantView } from './components/AiAssistantView';
 import { PlaceholderView } from './components/PlaceholderView';
 import { QuickSaleModal } from './components/QuickSaleModal';
 import { AddMedicineModal } from './components/AddMedicineModal';
+import { SettingsView } from './components/SettingsView';
+import { PrintableInvoice } from './components/PrintableInvoice';
 
 export default function App() {
   const [currentTab, setCurrentTab] = useState<TabType>('dashboard');
@@ -21,17 +23,17 @@ export default function App() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [shift, setShift] = useState<ShiftInfo>(initialShift);
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [dbStatus, setDbStatus] = useState<string>('Connected to Firestore (Live Proof)');
 
   const [isQuickSaleOpen, setIsQuickSaleOpen] = useState(false);
   const [isAddMedicineOpen, setIsAddMedicineOpen] = useState(false);
+  const [printingInvoice, setPrintingInvoice] = useState<Invoice | null>(null);
 
   // Fetch real-time data from Firestore
   useEffect(() => {
     const unsubMedicines = onSnapshot(collection(db, 'medicines'), (snapshot) => {
       const items: Medicine[] = [];
       snapshot.forEach(docSnap => {
-        items.push(docSnap.data() as Medicine);
+        items.push({ ...(docSnap.data() as Medicine), id: docSnap.id });
       });
       setMedicines(items);
       console.log('Firestore Proof: Fetched', items.length, 'medicines from collection /medicines');
@@ -44,7 +46,6 @@ export default function App() {
       snapshot.forEach(docSnap => {
         items.push(docSnap.data() as Invoice);
       });
-      // Sort newest first
       items.sort((a, b) => b.id.localeCompare(a.id));
       setInvoices(items);
       console.log('Firestore Proof: Fetched', items.length, 'invoices from collection /invoices');
@@ -57,6 +58,7 @@ export default function App() {
       unsubInvoices();
     };
   }, []);
+
 
   // Keyboard shortcuts (F2, F3)
   useEffect(() => {
@@ -83,6 +85,68 @@ export default function App() {
     }
   };
 
+  const handleDeleteMedicine = async (id: string) => {
+    if (!id) return;
+
+    try {
+      console.log('--- FIRESTORE DELETE START ---');
+      const docRef = doc(db, 'medicines', id);
+      
+      // We wait for the promise to resolve from the server
+      await deleteDoc(docRef);
+      
+      // Small delay to allow the real-time sync to propagate and prevent flicker
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      console.log('--- FIRESTORE DELETE SUCCESS ---');
+      alert('Record permanently removed from database.');
+    } catch (error) {
+      console.error('--- FIRESTORE DELETE FAILED ---');
+      alert('Delete failed. Please check your connection.');
+      handleFirestoreError(error, OperationType.DELETE, `medicines/${id}`);
+    }
+  };
+
+  const handleWipeDatabase = async () => {
+    const pass = prompt('MASTER RESET: Type "DELETE" to wipe entire database:');
+    if (pass !== 'DELETE') return;
+
+    try {
+      console.log('--- MASTER WIPE INITIATED ---');
+      const batch = writeBatch(db);
+      
+      // Fetch and delete all medicines
+      const medSnap = await getDocs(collection(db, 'medicines'));
+      medSnap.forEach(doc => batch.delete(doc.ref));
+      
+      // Fetch and delete all invoices
+      const invSnap = await getDocs(collection(db, 'invoices'));
+      invSnap.forEach(doc => batch.delete(doc.ref));
+      
+      await batch.commit();
+      
+      setMedicines([]);
+      setInvoices([]);
+      setShift(prev => ({ ...prev, drawerCash: 0 }));
+      
+      alert('DATABASE WIPED: All records have been permanently removed.');
+      console.log('--- MASTER WIPE COMPLETE ---');
+      window.location.reload(); // Force refresh to ensure all listeners clear
+    } catch (error) {
+      console.error('Wipe failed:', error);
+      alert('Critical Error during wipe. Some data may remain.');
+    }
+  };
+
+  const handlePrint = (inv: Invoice) => {
+    setPrintingInvoice(inv);
+    // Use a small timeout to ensure the printable section is rendered before triggering print
+    setTimeout(() => {
+      window.print();
+      setPrintingInvoice(null);
+    }, 100);
+  };
+
   const handleCompleteSale = async () => {
     if (cart.length === 0) return;
     const totalAmount = cart.reduce((acc, item) => acc + (item.medicine.retailPrice * item.quantity), 0);
@@ -105,11 +169,9 @@ export default function App() {
     };
 
     try {
-      // Save invoice to Firestore
       await setDoc(doc(db, 'invoices', invId), newInv);
       console.log('Firestore Proof: Successfully created invoice document:', invId);
 
-      // Update medicine stock levels in Firestore
       for (const item of cart) {
         const updatedStock = Math.max(0, item.medicine.stock - item.quantity);
         await updateDoc(doc(db, 'medicines', item.medicine.id), { stock: updatedStock });
@@ -117,7 +179,11 @@ export default function App() {
 
       setShift(prev => ({ ...prev, drawerCash: prev.drawerCash + totalAmount }));
       setCart([]);
-      alert(`Sale Completed & Saved to Firestore! Invoice ${newInv.invoiceNumber} generated.`);
+      
+      // Trigger Print
+      handlePrint(newInv);
+      
+      alert(`Sale Completed & Saved! Invoice ${newInv.invoiceNumber} printed.`);
       setCurrentTab('sales');
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `invoices/${invId}`);
@@ -127,7 +193,8 @@ export default function App() {
   const alertsCount = medicines.filter(m => m.stock <= m.minStock).length;
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex text-slate-800 font-sans antialiased">
+    <>
+      <div className="min-h-screen bg-[#F8FAFC] flex text-slate-800 font-sans antialiased print:hidden">
       {/* Sidebar */}
       <Sidebar 
         currentTab={currentTab} 
@@ -144,16 +211,10 @@ export default function App() {
           onOpenAddMedicine={() => setIsAddMedicineOpen(true)}
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}
+          medicines={medicines}
         />
 
-        {/* Database Proof & Currency Status Bar */}
-        <div className="bg-teal-900 text-teal-100 px-6 py-1.5 text-[11px] flex items-center justify-between font-mono border-b border-teal-950">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span>{dbStatus} • Currency: PKR (Rs.) • Zero Dummy Data (Add your own products via F3)</span>
-          </div>
-          <span className="text-teal-300">Firestore DB Connected ✓</span>
-        </div>
+
 
         <main className="flex-1 overflow-y-auto">
           {currentTab === 'dashboard' && (
@@ -173,6 +234,7 @@ export default function App() {
               setCart={setCart}
               onCompleteSale={handleCompleteSale}
               onOpenAddMedicine={() => setIsAddMedicineOpen(true)}
+              shift={shift}
             />
           )}
 
@@ -180,6 +242,7 @@ export default function App() {
             <InventoryView 
               medicines={medicines}
               onOpenAddMedicine={() => setIsAddMedicineOpen(true)}
+              onDeleteMedicine={handleDeleteMedicine}
             />
           )}
 
@@ -187,6 +250,7 @@ export default function App() {
             <SalesView 
               invoices={invoices}
               onOpenQuickSale={() => setIsQuickSaleOpen(true)}
+              onPrintInvoice={handlePrint}
             />
           )}
 
@@ -244,10 +308,8 @@ export default function App() {
           )}
 
           {currentTab === 'settings' && (
-            <PlaceholderView 
-              title="System Settings & Hardware Integration" 
-              description="Configure barcode scanners, thermal receipt printers (Epson TM-T88VI), FBR digital invoicing API keys, and branch parameters."
-              tabType={currentTab}
+            <SettingsView 
+              onWipeDatabase={handleWipeDatabase}
               setCurrentTab={setCurrentTab}
             />
           )}
@@ -268,6 +330,9 @@ export default function App() {
         onClose={() => setIsAddMedicineOpen(false)}
         onAddMedicine={handleAddMedicine}
       />
-    </div>
+
+      </div>
+      <PrintableInvoice invoice={printingInvoice} />
+    </>
   );
 }

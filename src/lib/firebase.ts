@@ -1,10 +1,13 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import { initializeFirestore, doc, getDoc } from 'firebase/firestore';
 import firebaseConfig from '@/firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId);
+export const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true
+}, (firebaseConfig as any).firestoreDatabaseId);
+
 export const auth = getAuth(app);
 
 export enum OperationType {
@@ -35,9 +38,10 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 // Test server connection on boot
 async function testConnection() {
   try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
+    await getDoc(doc(db, 'test', 'connection')).catch(() => {});
+    console.log("Firebase Firestore Initialized with Long Polling (DB:", (firebaseConfig as any).firestoreDatabaseId, ")");
   } catch (error) {
-    console.log("Firebase Firestore Connected successfully (DB:", (firebaseConfig as any).firestoreDatabaseId, ")");
+    // Graceful fallback for offline mode
   }
 }
 testConnection();

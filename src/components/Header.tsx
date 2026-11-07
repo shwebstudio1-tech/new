@@ -1,6 +1,6 @@
-import React from 'react';
-import { Search, ShoppingCart, Plus, Bell } from 'lucide-react';
-import { TabType } from '../types';
+import React, { useState } from 'react';
+import { Search, ShoppingCart, Plus, Bell, X, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { TabType, Medicine } from '../types';
 
 interface HeaderProps {
   setCurrentTab: (tab: TabType) => void;
@@ -8,6 +8,7 @@ interface HeaderProps {
   onOpenAddMedicine: () => void;
   searchTerm: string;
   setSearchTerm: (term: string) => void;
+  medicines: Medicine[];
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
@@ -15,8 +16,12 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenQuickSale, 
   onOpenAddMedicine,
   searchTerm,
-  setSearchTerm
+  setSearchTerm,
+  medicines
 }) => {
+  const [showNotifications, setShowNotifications] = useState(false);
+  const lowStock = medicines.filter(m => m.stock <= m.minStock);
+
   return (
     <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between sticky top-0 z-30 select-none">
       {/* Search Bar */}
@@ -39,9 +44,8 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Center Status / Quick Actions */}
       <div className="flex items-center gap-4">
         {/* System Online badge */}
-        <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-teal-50 border border-teal-200 rounded-lg text-xs font-medium text-teal-800">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span>System Online • Term-01</span>
+        <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-600">
+          <span>Terminal-01</span>
         </div>
 
         {/* Quick Sale F2 */}
@@ -70,14 +74,76 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* User Profile & Notifications */}
       <div className="flex items-center gap-3">
-        {/* Notification bell */}
+        {/* Notification bell & dropdown */}
         <div className="relative">
-          <button className="w-9 h-9 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-colors relative cursor-pointer">
+          <button 
+            onClick={() => setShowNotifications(!showNotifications)}
+            className="w-9 h-9 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-colors relative cursor-pointer"
+          >
             <Bell className="w-4 h-4" />
-            <span className="absolute -top-1 -right-1 bg-red-600 text-white font-bold text-[10px] w-4 h-4 rounded-full flex items-center justify-center shadow-sm">
-              7
-            </span>
+            {lowStock.length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-600 text-white font-bold text-[10px] w-4 h-4 rounded-full flex items-center justify-center shadow-sm">
+                {lowStock.length}
+              </span>
+            )}
           </button>
+
+          {/* Notifications Dropdown Panel */}
+          {showNotifications && (
+            <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden animate-in fade-in zoom-in duration-150">
+              <div className="p-3 bg-teal-800 text-white flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-bold">
+                  <Bell className="w-3.5 h-3.5" />
+                  <span>Store Notifications & Alerts</span>
+                </div>
+                <button onClick={() => setShowNotifications(false)} className="text-teal-200 hover:text-white p-1">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="p-3 space-y-2.5 max-h-72 overflow-y-auto text-xs">
+                {lowStock.length > 0 ? (
+                  lowStock.map(med => (
+                    <div key={med.id} className="p-2.5 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2.5">
+                      <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold text-red-900">Low Stock: {med.name}</p>
+                        <p className="text-[10px] text-red-700">Stock is at {med.stock} {med.unit} (Min: {med.minStock})</p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-2.5 text-emerald-900">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <div>
+                      <p className="font-bold">Inventory Optimal</p>
+                      <p className="text-[10px] text-emerald-700">All active stock levels are above safety thresholds.</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-2.5 text-slate-800">
+                  <div className="w-2 h-2 rounded-full bg-slate-400 shrink-0"></div>
+                  <div>
+                    <p className="font-bold text-slate-700">Database Connection</p>
+                    <p className="text-[10px] text-slate-500">Active terminal session.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-2.5 bg-slate-100 border-t border-slate-200 text-center">
+                <button 
+                  onClick={() => {
+                    setShowNotifications(false);
+                    setCurrentTab('inventory');
+                  }}
+                  className="text-xs font-bold text-teal-800 hover:underline cursor-pointer"
+                >
+                  View All Inventory Items →
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="h-8 w-px bg-slate-200"></div>
@@ -85,11 +151,11 @@ export const Header: React.FC<HeaderProps> = ({
         {/* User Profile */}
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-full bg-teal-800 text-white font-bold text-xs flex items-center justify-center shadow-sm ring-2 ring-teal-700/20">
-            SK
+            AD
           </div>
           <div className="text-left hidden sm:block">
-            <h4 className="text-xs font-bold text-slate-900 leading-tight">Dr. Sarah Khan</h4>
-            <p className="text-[10px] text-teal-800 font-semibold uppercase tracking-wider">Chief Pharmacist / Admin</p>
+            <h4 className="text-xs font-bold text-slate-900 leading-tight">Admin / Owner</h4>
+            <p className="text-[10px] text-teal-800 font-semibold uppercase tracking-wider">System Administrator</p>
           </div>
         </div>
       </div>

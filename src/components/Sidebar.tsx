@@ -252,6 +252,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, setCurrentTab, shi
           <span className="font-mono font-bold text-slate-800">Rs. {shift.drawerCash.toLocaleString('en-PK', { minimumFractionDigits: 2 })}</span>
         </div>
       </div>
+
     </aside>
   );
 };

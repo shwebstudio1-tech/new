@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Pill, CheckCircle2 } from 'lucide-react';
+import { X, Pill, CheckCircle2, Sparkles, Loader2 } from 'lucide-react';
 import { Medicine } from '../types';
 
 interface AddMedicineModalProps {
@@ -19,11 +19,74 @@ export const AddMedicineModal: React.FC<AddMedicineModalProps> = ({ isOpen, onCl
   const [stock, setStock] = useState(50);
   const [unit, setUnit] = useState<any>('boxes');
   const [minStock, setMinStock] = useState(10);
-  const [unitCost, setUnitCost] = useState(5.00);
-  const [retailPrice, setRetailPrice] = useState(8.50);
+  const [unitCost, setUnitCost] = useState(0.00);
+  const [retailPrice, setRetailPrice] = useState(0.00);
   const [expiryDate, setExpiryDate] = useState('31 Dec 2026');
+  const [loading, setLoading] = useState(false);
+  const [cache] = useState<Record<string, any>>({});
+  const [aiFilled, setAiFilled] = useState(false);
 
   if (!isOpen) return null;
+
+  const applySuggestedData = (d: any) => {
+    if (d.formula) setGenericName(d.formula);
+    if (d.manufacturer) setManufacturer(d.manufacturer);
+    if (d.sku) setSku(d.sku);
+    if (d.category) setCategory(d.category);
+    if (d.unit) setUnit(d.unit);
+    if (d.shelfLocation) setShelfLocation(d.shelfLocation);
+    if (d.unitCost !== undefined && d.unitCost !== null) {
+      const costVal = typeof d.unitCost === 'number' ? d.unitCost : parseFloat(String(d.unitCost).replace(/[^0-9.]/g, ''));
+      if (!isNaN(costVal)) setUnitCost(costVal);
+    }
+    if (d.price !== undefined && d.price !== null) {
+      const priceVal = typeof d.price === 'number' ? d.price : parseFloat(String(d.price).replace(/[^0-9.]/g, ''));
+      if (!isNaN(priceVal)) setRetailPrice(priceVal);
+    }
+    setAiFilled(true);
+  };
+
+  const handleAiSuggest = async () => {
+    const term = name.trim().toLowerCase();
+    if (!term) return;
+
+    if (cache[term]) {
+      applySuggestedData(cache[term]);
+      return;
+    }
+
+    setLoading(true);
+    setAiFilled(false);
+    try {
+      const response = await fetch('/api/suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ medicineName: name })
+      });
+      
+      const text = await response.text();
+      console.log('AI Suggest Raw Response:', text);
+      
+      if (!response.ok) {
+        let errMsg = 'Server error';
+        try {
+          const errObj = JSON.parse(text);
+          errMsg = errObj.details || errObj.error || text;
+        } catch (_) {
+          errMsg = text;
+        }
+        throw new Error(errMsg);
+      }
+
+      const data = JSON.parse(text);
+      applySuggestedData(data);
+      cache[term] = data;
+    } catch (error: any) {
+      console.error('AI suggestion failed', error);
+      alert(`AI Assistant: ${error?.message || 'Unable to fetch medicine details. Please enter manually.'}`);
+    }
+    setLoading(false);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,8 +107,7 @@ export const AddMedicineModal: React.FC<AddMedicineModalProps> = ({ isOpen, onCl
       unitCost,
       retailPrice,
       expiryDate,
-      confidence: '95% High',
-      status: 'optimal'
+      status: stock <= minStock ? 'low' : 'optimal'
     };
 
     onAddMedicine(newMed);
@@ -68,15 +130,40 @@ export const AddMedicineModal: React.FC<AddMedicineModalProps> = ({ isOpen, onCl
         <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs overflow-y-auto flex-1 scrollbar-thin">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block font-bold text-slate-700 mb-1">Brand Name *</label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. Augmentin 625mg"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-medium text-slate-800 focus:outline-none focus:border-teal-700"
-              />
+              <label htmlFor="brand-name" className="block font-bold text-slate-700 mb-1">Brand Name *</label>
+              <div className="flex gap-2">
+                <input
+                  id="brand-name"
+                  type="text"
+                  required
+                  placeholder="e.g. Augmentin 625mg"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-medium text-slate-800 focus:outline-none focus:border-teal-700"
+                />
+                <button 
+                  type="button"
+                  onClick={() => handleAiSuggest()}
+                  disabled={loading || !name.trim()}
+                  title="Smart Fill with AI"
+                  className="bg-emerald-600 text-white p-2 rounded-lg hover:bg-emerald-700 disabled:bg-slate-300 transition-colors shadow-sm shrink-0 flex items-center gap-1 px-3"
+                >
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                  <span className="text-[10px] font-bold">AI FILL</span>
+                </button>
+              </div>
+              {loading && (
+                <div className="mt-1 flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 animate-pulse bg-emerald-50 p-1.5 rounded border border-emerald-100">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  <span>AI Assistant is analyzing Pakistani drug database...</span>
+                </div>
+              )}
+              {aiFilled && !loading && (
+                <div className="mt-1 flex items-center gap-1.5 text-[10px] font-bold text-teal-800 bg-teal-50 p-1.5 rounded border border-teal-200">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-teal-600" />
+                  <span>Auto-filled: Formula, Manufacturer, SKU, Category, Prices & Shelf!</span>
+                </div>
+              )}
             </div>
             <div>
               <label className="block font-bold text-slate-700 mb-1">Generic Molecule / Formula</label>
@@ -89,7 +176,7 @@ export const AddMedicineModal: React.FC<AddMedicineModalProps> = ({ isOpen, onCl
               />
             </div>
           </div>
-
+          {/* ... rest of the form ... */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block font-bold text-slate-700 mb-1">Manufacturer</label>
@@ -190,7 +277,7 @@ export const AddMedicineModal: React.FC<AddMedicineModalProps> = ({ isOpen, onCl
               </select>
             </div>
             <div>
-              <label className="block font-bold text-slate-700 mb-1">Unit Cost ($)</label>
+              <label className="block font-bold text-slate-700 mb-1">Unit Cost (Rs.)</label>
               <input
                 type="number"
                 step="0.01"
@@ -200,7 +287,7 @@ export const AddMedicineModal: React.FC<AddMedicineModalProps> = ({ isOpen, onCl
               />
             </div>
             <div>
-              <label className="block font-bold text-slate-700 mb-1">Retail Price ($)</label>
+              <label className="block font-bold text-slate-700 mb-1">Retail Price (Rs.)</label>
               <input
                 type="number"
                 step="0.01"

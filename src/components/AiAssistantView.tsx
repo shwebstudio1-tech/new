@@ -35,40 +35,65 @@ export const AiAssistantView: React.FC<AiAssistantViewProps> = ({ medicines, inv
     }
   ]);
 
-  const handleSendChat = (e: React.FormEvent) => {
+  const [isStreaming, setIsStreaming] = useState(false);
+
+  const storeContext = React.useMemo(() => ({
+    inventory: medicines.map(m => ({ name: m.name, stock: m.stock, unit: m.unit, price: m.retailPrice })),
+    recentSales: invoices.slice(0, 5).map(inv => ({ number: inv.invoiceNumber, total: inv.totalAmount, date: inv.date }))
+  }), [medicines, invoices]);
+
+  const handleSendChat = React.useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chatInput.trim()) return;
+    if (!chatInput.trim() || isStreaming) return;
 
-    const query = chatInput.toLowerCase();
-    let reply = "";
-    let actionText = "";
-
-    if (query.includes('low') || query.includes('stock') || query.includes('alert')) {
-      if (lowStock.length === 0) {
-        reply = `Good news! All ${medicines.length} active products in your inventory have healthy stock levels above minimum thresholds. No low stock alerts right now.`;
-        actionText = 'INVENTORY STATUS: 100% OPTIMAL';
-      } else {
-        reply = `Warning! You have ${lowStock.length} items running low: ${lowStock.map(m => `${m.name} (${m.stock} ${m.unit} left)`).join(', ')}. Please reorder soon.`;
-        actionText = `ACTION REQUIRED: REORDER ${lowStock.length} ITEMS`;
-      }
-    } else if (query.includes('add') || query.includes('medicine') || query.includes('product')) {
-      reply = `You can easily add new medicines or surgical items by clicking the "Add Medicine F3" button in the top header or catalog view. That will immediately index them into Firestore.`;
-      actionText = 'SHORTCUT: PRESS F3 TO ADD MEDICINE';
-    } else if (query.includes('sale') || query.includes('total') || query.includes('profit') || query.includes('bill')) {
-      reply = `Financial summary: Total sales revenue recorded so far is Rs.${totalRev.toFixed(2)} across ${invoices.length} invoices. All calculations are tied to real Firestore records.`;
-      actionText = `SALES AUDIT: Rs.${totalRev.toFixed(2)} REVENUE`;
-    } else {
-      reply = `As your store manager AI, I am monitoring your inventory (${medicines.length} items) and sales (${invoices.length} transactions). Let me know if you need stock alerts, profit calculations, or inventory audits!`;
-      actionText = 'ZENPHARMA COPILOT ACTIVE';
-    }
-
-    setMessages(prev => [
-      ...prev,
-      { sender: 'user', text: chatInput, action: '' },
-      { sender: 'copilot', text: reply, action: actionText }
-    ]);
+    const userMsg = chatInput;
+    setMessages(prev => [...prev, { sender: 'user', text: userMsg, action: '' }]);
     setChatInput('');
-  };
+    setIsStreaming(true);
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          message: userMsg, 
+          history: messages,
+          context: storeContext
+        })
+      });
+
+      if (!response.ok) throw new Error(await response.text() || 'System busy.');
+      if (!response.body) throw new Error('No response body');
+      
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let botReply = '';
+      
+      setMessages(prev => [...prev, { sender: 'copilot', text: '', action: 'ZENPHARMA COPILOT STREAMING...' }]);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        botReply += decoder.decode(value, { stream: true });
+        
+        // Batch updates or at least target the last element properly
+        setMessages(prev => {
+          const next = [...prev];
+          next[next.length - 1] = { ...next[next.length - 1], text: botReply };
+          return next;
+        });
+      }
+    } catch (error: any) {
+      console.error('Chat error', error);
+      setMessages(prev => [...prev.slice(0, -1), { 
+        sender: 'copilot', 
+        text: `ERROR: ${error?.message || 'AI service unavailable.'}`, 
+        action: 'SYSTEM ERROR' 
+      }]);
+    } finally {
+      setIsStreaming(false);
+    }
+  }, [chatInput, messages, storeContext, isStreaming]);
 
   return (
     <div className="p-6 space-y-6 max-w-[1600px] mx-auto select-none">
@@ -77,9 +102,8 @@ export const AiAssistantView: React.FC<AiAssistantViewProps> = ({ medicines, inv
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-bold text-slate-900 tracking-tight">AI Assistant & Inventory Manager</h2>
-            <span className="bg-emerald-50 text-emerald-800 text-[10px] font-bold px-2.5 py-1 rounded-full border border-emerald-200 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              ZENPHARMA COPILOT • REAL-TIME FIRESTORE AI
+            <span className="bg-slate-50 text-slate-600 text-[10px] font-bold px-2.5 py-1 rounded-full border border-slate-200 flex items-center gap-1.5">
+              ZENPHARMA COPILOT
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">Autonomous inventory monitoring, low-stock advance warnings, billing assistance, and pharmacy store management.</p>
@@ -158,7 +182,7 @@ export const AiAssistantView: React.FC<AiAssistantViewProps> = ({ medicines, inv
             </div>
             <div>
               <h3 className="text-sm font-bold text-slate-900">ZenPharma Store Manager Copilot</h3>
-              <p className="text-[11px] text-emerald-600 font-semibold">● Active • Live DB Connected • Low Stock Guardian</p>
+              <p className="text-[11px] text-slate-500">Intelligent Pharmacy Assistant</p>
             </div>
           </div>
         </div>

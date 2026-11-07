@@ -11,27 +11,35 @@ import {
   RefreshCw,
   CheckCircle2,
   AlertTriangle,
-  ChevronRight
+  ChevronRight,
+  Trash2
 } from 'lucide-react';
 import { Medicine } from '../types';
 
 interface InventoryViewProps {
   medicines: Medicine[];
   onOpenAddMedicine: () => void;
+  onDeleteMedicine: (id: string) => void;
 }
 
-export const InventoryView: React.FC<InventoryViewProps> = ({ medicines, onOpenAddMedicine }) => {
+export const InventoryView: React.FC<InventoryViewProps> = ({ medicines, onOpenAddMedicine, onDeleteMedicine }) => {
   const [selectedMed, setSelectedMed] = useState<Medicine | null>(medicines[0] || null);
   const [filterPreset, setFilterPreset] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
-    if (medicines.length > 0 && (!selectedMed || !medicines.some(m => m.id === selectedMed.id))) {
-      setSelectedMed(medicines[0]);
-    } else if (medicines.length === 0) {
+    if (medicines.length === 0) {
       setSelectedMed(null);
+    } else if (selectedMed && !medicines.some(m => m.id === selectedMed.id)) {
+      setSelectedMed(null);
+    } else if (!selectedMed && medicines.length > 0) {
+      setSelectedMed(medicines[0]);
     }
-  }, [medicines]);
+    setDeleteConfirmId(null);
+    setIsDeleting(false);
+  }, [medicines, selectedMed?.id]);
 
   const filteredMedicines = medicines.filter(m => {
     const matchesSearch = m.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -63,6 +71,13 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ medicines, onOpenA
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button 
+            onClick={() => window.location.reload()}
+            className="p-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-500 hover:text-teal-700 hover:bg-teal-50 transition-all cursor-pointer"
+            title="Force Reload"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
           <button
             onClick={onOpenAddMedicine}
             className="flex items-center gap-1.5 bg-teal-800 hover:bg-teal-900 text-white px-3.5 py-2 rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer"
@@ -183,9 +198,9 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ medicines, onOpenA
                 <div className="w-12 h-12 rounded-full bg-teal-50 text-teal-700 flex items-center justify-center mx-auto">
                   <Boxes className="w-6 h-6" />
                 </div>
-                <h4 className="text-sm font-bold text-slate-900">No Medicines Added Yet</h4>
+                <h4 className="text-sm font-bold text-slate-900">No Medicine Records Found</h4>
                 <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                  Your pharmacy database is completely fresh. Click the button below to add your first product to Firestore.
+                  Start by adding your first product SKU. All inventory records are securely synced to the Firestore cloud database.
                 </p>
                 <button
                   onClick={onOpenAddMedicine}
@@ -336,6 +351,49 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ medicines, onOpenA
                     <span className="text-[10px] text-slate-400 block">Last Purchase Price:</span>
                     <span className="font-semibold text-slate-800 font-mono">Rs.{selectedMed.unitCost.toFixed(2)}</span>
                   </div>
+                </div>
+                <div className="pt-2">
+                  {deleteConfirmId === selectedMed.id ? (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
+                      <p className="text-red-800 font-bold leading-tight text-center">
+                        CONFIRM PERMANENT DELETE?
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          disabled={isDeleting}
+                          onClick={async () => {
+                            console.log('UI: YES DELETE clicked for ID:', selectedMed.id);
+                            setIsDeleting(true);
+                            await onDeleteMedicine(selectedMed.id);
+                          }}
+                          className={`flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg font-bold shadow-sm cursor-pointer transition-colors flex items-center justify-center gap-2 ${isDeleting ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        >
+                          {isDeleting ? (
+                            <>
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                              <span>DELETING...</span>
+                            </>
+                          ) : (
+                            <span>YES</span>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirmId(null)}
+                          className="flex-1 bg-white border border-slate-200 text-slate-600 py-2 rounded-lg font-bold hover:bg-slate-50 cursor-pointer transition-colors"
+                        >
+                          NO
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setDeleteConfirmId(selectedMed.id)}
+                      className="w-full flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-4 py-3 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-sm"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>DELETE FROM DATABASE</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </>

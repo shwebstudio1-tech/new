@@ -14,7 +14,7 @@ import {
   ShieldCheck,
   UserCheck
 } from 'lucide-react';
-import { Medicine, CartItem } from '../types';
+import { Medicine, CartItem, ShiftInfo } from '../types';
 
 interface PosViewProps {
   medicines: Medicine[];
@@ -22,9 +22,10 @@ interface PosViewProps {
   setCart: React.Dispatch<React.SetStateAction<CartItem[]>>;
   onCompleteSale: () => void;
   onOpenAddMedicine: () => void;
+  shift: ShiftInfo;
 }
 
-export const PosView: React.FC<PosViewProps> = ({ medicines, cart, setCart, onCompleteSale, onOpenAddMedicine }) => {
+export const PosView: React.FC<PosViewProps> = ({ medicines, cart, setCart, onCompleteSale, onOpenAddMedicine, shift }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [cashTendered, setCashTendered] = useState<number>(1000.00);
   const [customer, setCustomer] = useState({ name: 'Walk-in Patient', id: '#CUST-001', loyalty: '0 Pts' });
@@ -74,9 +75,9 @@ export const PosView: React.FC<PosViewProps> = ({ medicines, cart, setCart, onCo
           <span className="text-slate-400">|</span>
           <span>TERM-01</span>
           <span className="text-slate-400">|</span>
-          <span>SHIFT: #SH-0419</span>
+          <span>SHIFT: {shift.shiftId}</span>
           <span className="text-slate-400">|</span>
-          <span className="font-mono text-emerald-400">DRAWER: Rs. 0.00</span>
+          <span className="font-mono text-emerald-400">DRAWER: Rs. {shift.drawerCash.toLocaleString('en-PK')}</span>
         </div>
 
         <div className="flex items-center gap-2">

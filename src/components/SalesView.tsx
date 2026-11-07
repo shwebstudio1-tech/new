@@ -18,9 +18,10 @@ import { Invoice } from '../types';
 interface SalesViewProps {
   invoices: Invoice[];
   onOpenQuickSale: () => void;
+  onPrintInvoice: (inv: Invoice) => void;
 }
 
-export const SalesView: React.FC<SalesViewProps> = ({ invoices, onOpenQuickSale }) => {
+export const SalesView: React.FC<SalesViewProps> = ({ invoices, onOpenQuickSale, onPrintInvoice }) => {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(invoices[0] || null);
   const [triageTab, setTriageTab] = useState<'today' | 'rx' | 'returns' | 'hospital' | 'high'>('today');
 
@@ -200,6 +201,14 @@ export const SalesView: React.FC<SalesViewProps> = ({ invoices, onOpenQuickSale 
                 <span className="text-xs font-bold">NET AMOUNT DUE:</span>
                 <span className="text-base font-extrabold font-mono">Rs.{selectedInvoice.totalAmount.toFixed(2)}</span>
               </div>
+
+              <button 
+                onClick={() => onPrintInvoice(selectedInvoice)}
+                className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-black text-white py-3 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-sm"
+              >
+                <Printer className="w-4 h-4" />
+                <span>PRINT THERMAL RECEIPT</span>
+              </button>
             </div>
           )}
         </div>
