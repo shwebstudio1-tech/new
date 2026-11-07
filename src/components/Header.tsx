@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, ShoppingCart, Plus, Bell, X, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { Search, ShoppingCart, Plus, Bell, X, ShieldCheck, AlertTriangle, LogOut, ChevronDown } from 'lucide-react';
 import { TabType, Medicine } from '../types';
 
 interface HeaderProps {
@@ -9,6 +9,8 @@ interface HeaderProps {
   searchTerm: string;
   setSearchTerm: (term: string) => void;
   medicines: Medicine[];
+  userProfile?: { name: string; email: string; role: string; photoURL?: string } | null;
+  onSignOut?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
@@ -17,9 +19,12 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAddMedicine,
   searchTerm,
   setSearchTerm,
-  medicines
+  medicines,
+  userProfile,
+  onSignOut
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const lowStock = medicines.filter(m => m.stock <= m.minStock);
 
   return (
@@ -148,15 +153,59 @@ export const Header: React.FC<HeaderProps> = ({
 
         <div className="h-8 w-px bg-slate-200"></div>
 
-        {/* User Profile */}
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-full bg-teal-800 text-white font-bold text-xs flex items-center justify-center shadow-sm ring-2 ring-teal-700/20">
-            AD
-          </div>
-          <div className="text-left hidden sm:block">
-            <h4 className="text-xs font-bold text-slate-900 leading-tight">Admin / Owner</h4>
-            <p className="text-[10px] text-teal-800 font-semibold uppercase tracking-wider">System Administrator</p>
-          </div>
+        {/* User Profile & Menu */}
+        <div className="relative">
+          <button
+            onClick={() => setShowProfileMenu(!showProfileMenu)}
+            className="flex items-center gap-2.5 p-1 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer text-left"
+          >
+            {userProfile?.photoURL ? (
+              <img 
+                src={userProfile.photoURL} 
+                alt={userProfile.name} 
+                className="w-9 h-9 rounded-full object-cover shadow-sm ring-2 ring-teal-700/20"
+              />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-teal-800 text-white font-bold text-xs flex items-center justify-center shadow-sm ring-2 ring-teal-700/20">
+                {(userProfile?.name || 'AD').split(' ').map(n => n[0]).join('').slice(0, 2)}
+              </div>
+            )}
+            <div className="hidden sm:block">
+              <h4 className="text-xs font-bold text-slate-900 leading-tight">
+                {userProfile?.name || 'Admin / Owner'}
+              </h4>
+              <p className="text-[10px] text-teal-800 font-semibold uppercase tracking-wider">
+                {userProfile?.role || 'System Administrator'}
+              </p>
+            </div>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
+          </button>
+
+          {/* Profile Dropdown */}
+          {showProfileMenu && (
+            <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden animate-in fade-in zoom-in duration-150 p-2 space-y-2">
+              <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                <p className="text-xs font-bold text-slate-900">{userProfile?.name || 'Admin / Owner'}</p>
+                <p className="text-[11px] text-slate-500 truncate">{userProfile?.email || 'owner@talhasurgical.pk'}</p>
+                <span className="mt-1.5 inline-block text-[10px] font-bold bg-teal-100 text-teal-800 px-2 py-0.5 rounded">
+                  {userProfile?.role || 'System Administrator'}
+                </span>
+              </div>
+
+              {onSignOut && (
+                <button
+                  onClick={() => {
+                    setShowProfileMenu(false);
+                    onSignOut();
+                  }}
+                  className="w-full flex items-center gap-2 p-2.5 rounded-lg text-xs font-bold text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4 text-red-500" />
+                  <span>Lock Terminal / Sign Out</span>
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </header>

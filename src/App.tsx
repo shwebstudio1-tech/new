@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, doc, setDoc, onSnapshot, updateDoc, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
-import { db, OperationType, handleFirestoreError } from './lib/firebase';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { db, auth, OperationType, handleFirestoreError } from './lib/firebase';
 import { TabType, Medicine, Invoice, CartItem, ShiftInfo } from './types';
 import { initialShift, velocityData, aiForecastData } from './mockData';
 import { Sidebar } from './components/Sidebar';
@@ -15,8 +16,21 @@ import { QuickSaleModal } from './components/QuickSaleModal';
 import { AddMedicineModal } from './components/AddMedicineModal';
 import { SettingsView } from './components/SettingsView';
 import { PrintableInvoice } from './components/PrintableInvoice';
+import { LoginView } from './components/LoginView';
+
+export interface UserProfile {
+  name: string;
+  email: string;
+  role: string;
+  photoURL?: string;
+}
 
 export default function App() {
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(() => {
+    const saved = localStorage.getItem('talha_user_session');
+    return saved ? JSON.parse(saved) : null;
+  });
+
   const [currentTab, setCurrentTab] = useState<TabType>('dashboard');
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -27,6 +41,56 @@ export default function App() {
   const [isQuickSaleOpen, setIsQuickSaleOpen] = useState(false);
   const [isAddMedicineOpen, setIsAddMedicineOpen] = useState(false);
   const [printingInvoice, setPrintingInvoice] = useState<Invoice | null>(null);
+
+  const [credentials, setCredentials] = useState<{ username: string; password: string }>(() => {
+    const saved = localStorage.getItem('talha_auth_credentials');
+    return saved ? JSON.parse(saved) : { username: 'admin', password: 'talha123' };
+  });
+
+  // Sync credentials from Firestore settings/auth document
+  useEffect(() => {
+    const unsubAuthSettings = onSnapshot(doc(db, 'settings', 'auth'), (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        if (data.password) {
+          const creds = { username: data.username || 'admin', password: data.password };
+          setCredentials(creds);
+          localStorage.setItem('talha_auth_credentials', JSON.stringify(creds));
+        }
+      } else {
+        // Initialize default auth credentials document in Firestore
+        setDoc(doc(db, 'settings', 'auth'), {
+          username: 'admin',
+          password: 'talha123',
+          updatedAt: new Date().toISOString()
+        }).catch(() => {});
+      }
+    }, (error) => {
+      console.log('Using local store credentials', error);
+    });
+
+    return () => unsubAuthSettings();
+  }, []);
+
+  const handleUpdatePassword = async (newPass: string): Promise<boolean> => {
+    try {
+      const updated = { ...credentials, password: newPass };
+      await setDoc(doc(db, 'settings', 'auth'), {
+        username: credentials.username,
+        password: newPass,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+      setCredentials(updated);
+      localStorage.setItem('talha_auth_credentials', JSON.stringify(updated));
+      return true;
+    } catch (e) {
+      console.error('Failed to update password in Firestore', e);
+      const updated = { ...credentials, password: newPass };
+      setCredentials(updated);
+      localStorage.setItem('talha_auth_credentials', JSON.stringify(updated));
+      return true;
+    }
+  };
 
   // Fetch real-time data from Firestore
   useEffect(() => {
@@ -190,6 +254,60 @@ export default function App() {
     }
   };
 
+  const [autoLocked, setAutoLocked] = useState(false);
+
+  // 10-Minute Inactivity Auto-Lock Security Feature
+  useEffect(() => {
+    if (!userProfile) return;
+
+    let inactivityTimer: NodeJS.Timeout;
+
+    const resetInactivityTimer = () => {
+      if (inactivityTimer) clearTimeout(inactivityTimer);
+      inactivityTimer = setTimeout(() => {
+        console.log('Terminal auto-locked due to 10 minutes of inactivity.');
+        setAutoLocked(true);
+        handleSignOut();
+      }, 10 * 60 * 1000); // 10 minutes inactivity timeout
+    };
+
+    const activityEvents = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+    activityEvents.forEach(event => window.addEventListener(event, resetInactivityTimer));
+
+    resetInactivityTimer();
+
+    return () => {
+      if (inactivityTimer) clearTimeout(inactivityTimer);
+      activityEvents.forEach(event => window.removeEventListener(event, resetInactivityTimer));
+    };
+  }, [userProfile]);
+
+  const handleLoginSuccess = (profile: UserProfile) => {
+    setAutoLocked(false);
+    setUserProfile(profile);
+    setShift(prev => ({
+      ...prev,
+      pharmacistName: profile.name,
+      status: profile.role
+    }));
+    localStorage.setItem('talha_user_session', JSON.stringify(profile));
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+    } catch (e) {
+      console.error('Sign out error', e);
+    }
+    setUserProfile(null);
+    localStorage.removeItem('talha_user_session');
+  };
+
+  // If not authenticated, render Login Screen
+  if (!userProfile) {
+    return <LoginView onLoginSuccess={handleLoginSuccess} expectedCredentials={credentials} autoLocked={autoLocked} />;
+  }
+
   const alertsCount = medicines.filter(m => m.stock <= m.minStock).length;
 
   return (
@@ -212,6 +330,8 @@ export default function App() {
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}
           medicines={medicines}
+          userProfile={userProfile}
+          onSignOut={handleSignOut}
         />
 
 
@@ -311,6 +431,9 @@ export default function App() {
             <SettingsView 
               onWipeDatabase={handleWipeDatabase}
               setCurrentTab={setCurrentTab}
+              onSignOut={handleSignOut}
+              expectedCredentials={credentials}
+              onUpdatePassword={handleUpdatePassword}
             />
           )}
         </main>
