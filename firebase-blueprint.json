@@ -52,6 +52,23 @@
         "updatedAt": { "type": "string" }
       },
       "required": ["username", "password"]
+    },
+    "CustomerKhata": {
+      "title": "CustomerKhata",
+      "description": "Customer credit account (Udhar / Khata ledger record)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "cnic": { "type": "string" },
+        "address": { "type": "string" },
+        "totalDebt": { "type": "number" },
+        "creditLimit": { "type": "number" },
+        "lastTransactionDate": { "type": "string" },
+        "transactions": { "type": "array" }
+      },
+      "required": ["id", "name", "phone", "totalDebt"]
     }
   },
   "firestore": {
@@ -66,6 +83,10 @@
     "/settings/{settingId}": {
       "schema": { "$ref": "#/entities/StoreAuth" },
       "description": "System settings and admin authentication credentials"
+    },
+    "/customers/{customerId}": {
+      "schema": { "$ref": "#/entities/CustomerKhata" },
+      "description": "Collection of customer Khata accounts and credit ledgers"
     }
   }
 }

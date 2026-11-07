@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { collection, doc, setDoc, onSnapshot, updateDoc, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { db, auth, OperationType, handleFirestoreError } from './lib/firebase';
-import { TabType, Medicine, Invoice, CartItem, ShiftInfo } from './types';
-import { initialShift, velocityData, aiForecastData } from './mockData';
+import { TabType, Medicine, Invoice, CartItem, ShiftInfo, Customer, KhataTransaction } from './types';
+import { initialShift } from './mockData';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { DashboardView } from './components/DashboardView';
@@ -17,6 +17,8 @@ import { AddMedicineModal } from './components/AddMedicineModal';
 import { SettingsView } from './components/SettingsView';
 import { PrintableInvoice } from './components/PrintableInvoice';
 import { LoginView } from './components/LoginView';
+import { CustomersKhataView } from './components/CustomersKhataView';
+import { EditMedicineModal } from './components/EditMedicineModal';
 
 export interface UserProfile {
   name: string;
@@ -34,12 +36,15 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState<TabType>('dashboard');
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [shift, setShift] = useState<ShiftInfo>(initialShift);
   const [searchTerm, setSearchTerm] = useState<string>('');
 
   const [isQuickSaleOpen, setIsQuickSaleOpen] = useState(false);
   const [isAddMedicineOpen, setIsAddMedicineOpen] = useState(false);
+  const [editingMedicine, setEditingMedicine] = useState<Medicine | null>(null);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [printingInvoice, setPrintingInvoice] = useState<Invoice | null>(null);
 
   const [credentials, setCredentials] = useState<{ username: string; password: string }>(() => {
@@ -58,7 +63,6 @@ export default function App() {
           localStorage.setItem('talha_auth_credentials', JSON.stringify(creds));
         }
       } else {
-        // Initialize default auth credentials document in Firestore
         setDoc(doc(db, 'settings', 'auth'), {
           username: 'admin',
           password: 'talha123',
@@ -92,7 +96,7 @@ export default function App() {
     }
   };
 
-  // Fetch real-time data from Firestore
+  // Fetch real-time data from Firestore (medicines, invoices, customers)
   useEffect(() => {
     const unsubMedicines = onSnapshot(collection(db, 'medicines'), (snapshot) => {
       const items: Medicine[] = [];
@@ -100,7 +104,6 @@ export default function App() {
         items.push({ ...(docSnap.data() as Medicine), id: docSnap.id });
       });
       setMedicines(items);
-      console.log('Firestore Proof: Fetched', items.length, 'medicines from collection /medicines');
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'medicines');
     });
@@ -112,17 +115,27 @@ export default function App() {
       });
       items.sort((a, b) => b.id.localeCompare(a.id));
       setInvoices(items);
-      console.log('Firestore Proof: Fetched', items.length, 'invoices from collection /invoices');
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'invoices');
+    });
+
+    const unsubCustomers = onSnapshot(collection(db, 'customers'), (snapshot) => {
+      const items: Customer[] = [];
+      snapshot.forEach(docSnap => {
+        items.push({ ...(docSnap.data() as Customer), id: docSnap.id });
+      });
+      items.sort((a, b) => (b.totalDebt || 0) - (a.totalDebt || 0));
+      setCustomers(items);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'customers');
     });
 
     return () => {
       unsubMedicines();
       unsubInvoices();
+      unsubCustomers();
     };
   }, []);
-
 
   // Keyboard shortcuts (F2, F3)
   useEffect(() => {
@@ -142,33 +155,99 @@ export default function App() {
   const handleAddMedicine = async (newMed: Medicine) => {
     try {
       await setDoc(doc(db, 'medicines', newMed.id), newMed);
-      console.log('Firestore Proof: Successfully created medicine document:', newMed.id);
-      alert(`Medicine "${newMed.name}" saved successfully to Firestore database!`);
+      alert(`Medicine "${newMed.name}" saved successfully!`);
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `medicines/${newMed.id}`);
     }
   };
 
+  const handleUpdateMedicine = async (updatedMed: Medicine) => {
+    try {
+      await setDoc(doc(db, 'medicines', updatedMed.id), updatedMed);
+      alert(`Medicine "${updatedMed.name}" updated successfully!`);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `medicines/${updatedMed.id}`);
+    }
+  };
+
   const handleDeleteMedicine = async (id: string) => {
     if (!id) return;
-
     try {
-      console.log('--- FIRESTORE DELETE START ---');
       const docRef = doc(db, 'medicines', id);
-      
-      // We wait for the promise to resolve from the server
       await deleteDoc(docRef);
-      
-      // Small delay to allow the real-time sync to propagate and prevent flicker
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      console.log('--- FIRESTORE DELETE SUCCESS ---');
+      await new Promise(resolve => setTimeout(resolve, 500));
       alert('Record permanently removed from database.');
     } catch (error) {
-      console.error('--- FIRESTORE DELETE FAILED ---');
       alert('Delete failed. Please check your connection.');
       handleFirestoreError(error, OperationType.DELETE, `medicines/${id}`);
     }
+  };
+
+  const handleAddCustomer = async (data: Omit<Customer, 'id' | 'transactions' | 'totalDebt'> & { initialDebt?: number }) => {
+    const custId = `cust-${Date.now()}`;
+    const initialDebt = Number(data.initialDebt || 0);
+    const initialTxns: KhataTransaction[] = initialDebt > 0 ? [{
+      id: `tx-${Date.now()}`,
+      date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      type: 'CREDIT_PURCHASE',
+      description: 'Initial Opening Udhar Balance',
+      amount: initialDebt,
+      remainingBalance: initialDebt
+    }] : [];
+
+    const newCust: Customer = {
+      id: custId,
+      name: data.name,
+      phone: data.phone,
+      cnic: data.cnic || '',
+      address: data.address || '',
+      creditLimit: data.creditLimit || 20000,
+      totalDebt: initialDebt,
+      lastTransactionDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      transactions: initialTxns
+    };
+
+    try {
+      await setDoc(doc(db, 'customers', custId), newCust);
+      alert(`Khata Account for "${newCust.name}" created successfully!`);
+    } catch (e) {
+      handleFirestoreError(e, OperationType.CREATE, `customers/${custId}`);
+    }
+  };
+
+  const handleAddKhataTransaction = async (customerId: string, transaction: Omit<KhataTransaction, 'id' | 'remainingBalance'>) => {
+    const cust = customers.find(c => c.id === customerId);
+    if (!cust) return;
+
+    const txId = `tx-${Date.now()}`;
+    const delta = transaction.type === 'CREDIT_PURCHASE' ? transaction.amount : -transaction.amount;
+    const newDebt = Math.max(0, (cust.totalDebt || 0) + delta);
+
+    const newTx: KhataTransaction = {
+      ...transaction,
+      id: txId,
+      remainingBalance: newDebt
+    };
+
+    const updatedTxns = [newTx, ...(cust.transactions || [])];
+
+    try {
+      await updateDoc(doc(db, 'customers', customerId), {
+        totalDebt: newDebt,
+        lastTransactionDate: newTx.date,
+        transactions: updatedTxns
+      });
+      alert(`Khata updated for "${cust.name}". New Balance: Rs. ${newDebt.toFixed(2)}`);
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `customers/${customerId}`);
+    }
+  };
+
+  const handleResetDailyData = async () => {
+    if (!confirm("Are you sure you want to reset today's daily revenue register? This will reset the shift register cash balance to Rs. 0 for the new operative day.")) return;
+    setShift(prev => ({ ...prev, drawerCash: 0 }));
+    alert("Daily revenue register reset successfully for the new operative day!");
   };
 
   const handleWipeDatabase = async () => {
@@ -179,23 +258,24 @@ export default function App() {
       console.log('--- MASTER WIPE INITIATED ---');
       const batch = writeBatch(db);
       
-      // Fetch and delete all medicines
       const medSnap = await getDocs(collection(db, 'medicines'));
       medSnap.forEach(doc => batch.delete(doc.ref));
       
-      // Fetch and delete all invoices
       const invSnap = await getDocs(collection(db, 'invoices'));
       invSnap.forEach(doc => batch.delete(doc.ref));
+
+      const custSnap = await getDocs(collection(db, 'customers'));
+      custSnap.forEach(doc => batch.delete(doc.ref));
       
       await batch.commit();
       
       setMedicines([]);
       setInvoices([]);
+      setCustomers([]);
       setShift(prev => ({ ...prev, drawerCash: 0 }));
       
       alert('DATABASE WIPED: All records have been permanently removed.');
-      console.log('--- MASTER WIPE COMPLETE ---');
-      window.location.reload(); // Force refresh to ensure all listeners clear
+      window.location.reload();
     } catch (error) {
       console.error('Wipe failed:', error);
       alert('Critical Error during wipe. Some data may remain.');
@@ -204,14 +284,13 @@ export default function App() {
 
   const handlePrint = (inv: Invoice) => {
     setPrintingInvoice(inv);
-    // Use a small timeout to ensure the printable section is rendered before triggering print
     setTimeout(() => {
       window.print();
       setPrintingInvoice(null);
     }, 100);
   };
 
-  const handleCompleteSale = async () => {
+  const handleCompleteSale = async (shouldPrint: boolean = true) => {
     if (cart.length === 0) return;
     const totalAmount = cart.reduce((acc, item) => acc + (item.medicine.retailPrice * item.quantity), 0);
     const invId = `inv-${Date.now()}`;
@@ -234,7 +313,6 @@ export default function App() {
 
     try {
       await setDoc(doc(db, 'invoices', invId), newInv);
-      console.log('Firestore Proof: Successfully created invoice document:', invId);
 
       for (const item of cart) {
         const updatedStock = Math.max(0, item.medicine.stock - item.quantity);
@@ -244,10 +322,12 @@ export default function App() {
       setShift(prev => ({ ...prev, drawerCash: prev.drawerCash + totalAmount }));
       setCart([]);
       
-      // Trigger Print
-      handlePrint(newInv);
-      
-      alert(`Sale Completed & Saved! Invoice ${newInv.invoiceNumber} printed.`);
+      if (shouldPrint) {
+        handlePrint(newInv);
+        alert(`Sale Completed & Saved! Invoice ${newInv.invoiceNumber} printed.`);
+      } else {
+        alert(`Sale Completed & Saved to Firestore! (Invoice ${newInv.invoiceNumber})`);
+      }
       setCurrentTab('sales');
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `invoices/${invId}`);
@@ -268,7 +348,7 @@ export default function App() {
         console.log('Terminal auto-locked due to 10 minutes of inactivity.');
         setAutoLocked(true);
         handleSignOut();
-      }, 10 * 60 * 1000); // 10 minutes inactivity timeout
+      }, 10 * 60 * 1000);
     };
 
     const activityEvents = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
@@ -303,7 +383,6 @@ export default function App() {
     localStorage.removeItem('talha_user_session');
   };
 
-  // If not authenticated, render Login Screen
   if (!userProfile) {
     return <LoginView onLoginSuccess={handleLoginSuccess} expectedCredentials={credentials} autoLocked={autoLocked} />;
   }
@@ -313,146 +392,156 @@ export default function App() {
   return (
     <>
       <div className="min-h-screen bg-[#F8FAFC] flex text-slate-800 font-sans antialiased print:hidden">
-      {/* Sidebar */}
-      <Sidebar 
-        currentTab={currentTab} 
-        setCurrentTab={setCurrentTab} 
-        shift={shift} 
-        alertsCount={alertsCount} 
-      />
-
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <Header 
-          setCurrentTab={setCurrentTab}
-          onOpenQuickSale={() => setIsQuickSaleOpen(true)}
-          onOpenAddMedicine={() => setIsAddMedicineOpen(true)}
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          medicines={medicines}
-          userProfile={userProfile}
-          onSignOut={handleSignOut}
+        {/* Sidebar with Mobile Drawer support */}
+        <Sidebar 
+          currentTab={currentTab} 
+          setCurrentTab={setCurrentTab} 
+          shift={shift} 
+          alertsCount={alertsCount} 
+          isOpenMobile={isMobileSidebarOpen}
+          onCloseMobile={() => setIsMobileSidebarOpen(false)}
         />
 
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col min-w-0">
+          <Header 
+            setCurrentTab={setCurrentTab}
+            onOpenQuickSale={() => setIsQuickSaleOpen(true)}
+            onOpenAddMedicine={() => setIsAddMedicineOpen(true)}
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            medicines={medicines}
+            userProfile={userProfile}
+            onSignOut={handleSignOut}
+            onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+            onResetDailyData={handleResetDailyData}
+          />
 
+          <main className="flex-1 overflow-y-auto">
+            {currentTab === 'dashboard' && (
+              <DashboardView 
+                medicines={medicines} 
+                invoices={invoices} 
+                setCurrentTab={setCurrentTab}
+                onOpenQuickSale={() => setIsQuickSaleOpen(true)}
+                onOpenAddMedicine={() => setIsAddMedicineOpen(true)}
+                onOpenEditMedicine={(med) => setEditingMedicine(med)}
+              />
+            )}
 
-        <main className="flex-1 overflow-y-auto">
-          {currentTab === 'dashboard' && (
-            <DashboardView 
-              medicines={medicines} 
-              invoices={invoices} 
-              setCurrentTab={setCurrentTab}
-              onOpenQuickSale={() => setIsQuickSaleOpen(true)}
-              onOpenAddMedicine={() => setIsAddMedicineOpen(true)}
-            />
-          )}
+            {currentTab === 'pos' && (
+              <PosView 
+                medicines={medicines}
+                cart={cart}
+                setCart={setCart}
+                onCompleteSale={handleCompleteSale}
+                onOpenAddMedicine={() => setIsAddMedicineOpen(true)}
+                shift={shift}
+              />
+            )}
 
-          {currentTab === 'pos' && (
-            <PosView 
-              medicines={medicines}
-              cart={cart}
-              setCart={setCart}
-              onCompleteSale={handleCompleteSale}
-              onOpenAddMedicine={() => setIsAddMedicineOpen(true)}
-              shift={shift}
-            />
-          )}
+            {(currentTab === 'medicines' || currentTab === 'inventory') && (
+              <InventoryView 
+                medicines={medicines}
+                onOpenAddMedicine={() => setIsAddMedicineOpen(true)}
+                onDeleteMedicine={handleDeleteMedicine}
+                onOpenEditMedicine={(med) => setEditingMedicine(med)}
+              />
+            )}
 
-          {(currentTab === 'medicines' || currentTab === 'inventory') && (
-            <InventoryView 
-              medicines={medicines}
-              onOpenAddMedicine={() => setIsAddMedicineOpen(true)}
-              onDeleteMedicine={handleDeleteMedicine}
-            />
-          )}
+            {currentTab === 'sales' && (
+              <SalesView 
+                invoices={invoices}
+                onOpenQuickSale={() => setIsQuickSaleOpen(true)}
+                onPrintInvoice={handlePrint}
+              />
+            )}
 
-          {currentTab === 'sales' && (
-            <SalesView 
-              invoices={invoices}
-              onOpenQuickSale={() => setIsQuickSaleOpen(true)}
-              onPrintInvoice={handlePrint}
-            />
-          )}
+            {currentTab === 'customers' && (
+              <CustomersKhataView 
+                customers={customers}
+                onAddCustomer={handleAddCustomer}
+                onAddKhataTransaction={handleAddKhataTransaction}
+              />
+            )}
 
-          {currentTab === 'ai-assistant' && (
-            <AiAssistantView 
-              medicines={medicines}
-              invoices={invoices}
-              onOpenAddMedicine={() => setIsAddMedicineOpen(true)}
-            />
-          )}
+            {currentTab === 'ai-assistant' && (
+              <AiAssistantView 
+                medicines={medicines}
+                invoices={invoices}
+                onOpenAddMedicine={() => setIsAddMedicineOpen(true)}
+              />
+            )}
 
-          {currentTab === 'purchases' && (
-            <PlaceholderView 
-              title="Purchase Orders & Supplier Invoices" 
-              description="Manage distributor purchase orders, batch verification, goods received notes (GRN), and cost audits."
-              tabType={currentTab}
-              setCurrentTab={setCurrentTab}
-            />
-          )}
+            {currentTab === 'purchases' && (
+              <PlaceholderView 
+                title="Purchase Orders & Supplier Invoices" 
+                description="Manage distributor purchase orders, batch verification, goods received notes (GRN), and cost audits."
+                tabType={currentTab}
+                setCurrentTab={setCurrentTab}
+              />
+            )}
 
-          {currentTab === 'customers' && (
-            <PlaceholderView 
-              title="Customer CRM & Patient Profiles" 
-              description="Manage patient chronic prescription history, loyalty rewards, AR credit limits, and doctor referral mappings."
-              tabType={currentTab}
-              setCurrentTab={setCurrentTab}
-            />
-          )}
+            {currentTab === 'suppliers' && (
+              <PlaceholderView 
+                title="Suppliers & Distributor Directory" 
+                description="Directory of pharmaceutical manufacturers, wholesale medical distributors, lead times, and contract terms."
+                tabType={currentTab}
+                setCurrentTab={setCurrentTab}
+              />
+            )}
 
-          {currentTab === 'suppliers' && (
-            <PlaceholderView 
-              title="Suppliers & Distributor Directory" 
-              description="Directory of pharmaceutical manufacturers, wholesale medical distributors, lead times, and contract terms."
-              tabType={currentTab}
-              setCurrentTab={setCurrentTab}
-            />
-          )}
+            {currentTab === 'reports' && (
+              <PlaceholderView 
+                title="Reports & Financial Analytics" 
+                description="Detailed DRAP compliance reports, narcotic audit logs, gross profit margin breakdown, and tax summaries."
+                tabType={currentTab}
+                setCurrentTab={setCurrentTab}
+              />
+            )}
 
-          {currentTab === 'reports' && (
-            <PlaceholderView 
-              title="Reports & Financial Analytics" 
-              description="Detailed DRAP compliance reports, narcotic audit logs, gross profit margin breakdown, and tax summaries."
-              tabType={currentTab}
-              setCurrentTab={setCurrentTab}
-            />
-          )}
+            {currentTab === 'staff' && (
+              <PlaceholderView 
+                title="Staff & Shift Management" 
+                description="Manage pharmacist licenses, terminal access control, drawer cash reconciliation, and shift logs."
+                tabType={currentTab}
+                setCurrentTab={setCurrentTab}
+              />
+            )}
 
-          {currentTab === 'staff' && (
-            <PlaceholderView 
-              title="Staff & Shift Management" 
-              description="Manage pharmacist licenses, terminal access control, drawer cash reconciliation, and shift logs."
-              tabType={currentTab}
-              setCurrentTab={setCurrentTab}
-            />
-          )}
+            {currentTab === 'settings' && (
+              <SettingsView 
+                onWipeDatabase={handleWipeDatabase}
+                setCurrentTab={setCurrentTab}
+                onSignOut={handleSignOut}
+                expectedCredentials={credentials}
+                onUpdatePassword={handleUpdatePassword}
+              />
+            )}
+          </main>
+        </div>
 
-          {currentTab === 'settings' && (
-            <SettingsView 
-              onWipeDatabase={handleWipeDatabase}
-              setCurrentTab={setCurrentTab}
-              onSignOut={handleSignOut}
-              expectedCredentials={credentials}
-              onUpdatePassword={handleUpdatePassword}
-            />
-          )}
-        </main>
-      </div>
+        {/* Modals */}
+        <QuickSaleModal 
+          isOpen={isQuickSaleOpen}
+          onClose={() => setIsQuickSaleOpen(false)}
+          medicines={medicines}
+          setCart={setCart}
+          setCurrentTab={setCurrentTab}
+        />
 
-      {/* Modals */}
-      <QuickSaleModal 
-        isOpen={isQuickSaleOpen}
-        onClose={() => setIsQuickSaleOpen(false)}
-        medicines={medicines}
-        setCart={setCart}
-        setCurrentTab={setCurrentTab}
-      />
+        <AddMedicineModal 
+          isOpen={isAddMedicineOpen}
+          onClose={() => setIsAddMedicineOpen(false)}
+          onAddMedicine={handleAddMedicine}
+        />
 
-      <AddMedicineModal 
-        isOpen={isAddMedicineOpen}
-        onClose={() => setIsAddMedicineOpen(false)}
-        onAddMedicine={handleAddMedicine}
-      />
+        <EditMedicineModal 
+          isOpen={!!editingMedicine}
+          onClose={() => setEditingMedicine(null)}
+          medicine={editingMedicine}
+          onUpdateMedicine={handleUpdateMedicine}
+        />
 
       </div>
       <PrintableInvoice invoice={printingInvoice} />

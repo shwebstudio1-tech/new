@@ -177,11 +177,11 @@ export const AiAssistantView: React.FC<AiAssistantViewProps> = ({ medicines, inv
       <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col h-[600px] justify-between">
         <div className="flex items-center justify-between pb-4 border-b border-slate-200">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-teal-800 text-white flex items-center justify-center font-bold text-sm shadow-md">
-              ZP
+            <div className="w-10 h-10 rounded-full bg-teal-800 text-white flex items-center justify-center font-black text-sm shadow-md ring-2 ring-teal-700/20">
+              TS
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900">ZenPharma Store Manager Copilot</h3>
+              <h3 className="text-sm font-bold text-slate-900">Talha Surgical Store Copilot</h3>
               <p className="text-[11px] text-slate-500">Intelligent Pharmacy Assistant</p>
             </div>
           </div>

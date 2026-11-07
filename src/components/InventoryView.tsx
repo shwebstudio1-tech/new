@@ -12,7 +12,8 @@ import {
   CheckCircle2,
   AlertTriangle,
   ChevronRight,
-  Trash2
+  Trash2,
+  Edit
 } from 'lucide-react';
 import { Medicine } from '../types';
 
@@ -20,9 +21,10 @@ interface InventoryViewProps {
   medicines: Medicine[];
   onOpenAddMedicine: () => void;
   onDeleteMedicine: (id: string) => void;
+  onOpenEditMedicine?: (med: Medicine) => void;
 }
 
-export const InventoryView: React.FC<InventoryViewProps> = ({ medicines, onOpenAddMedicine, onDeleteMedicine }) => {
+export const InventoryView: React.FC<InventoryViewProps> = ({ medicines, onOpenAddMedicine, onDeleteMedicine, onOpenEditMedicine }) => {
   const [selectedMed, setSelectedMed] = useState<Medicine | null>(medicines[0] || null);
   const [filterPreset, setFilterPreset] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -223,7 +225,8 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ medicines, onOpenA
                     <th className="p-3.5">SHELF LOCATION</th>
                     <th className="p-3.5">CURRENT STOCK</th>
                     <th className="p-3.5">UNIT COST</th>
-                    <th className="p-3.5 pr-4 text-right">RETAIL</th>
+                    <th className="p-3.5">RETAIL</th>
+                    <th className="p-3.5 pr-4 text-right">ACTIONS</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
@@ -271,8 +274,18 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ medicines, onOpenA
                           <div className="text-[10px] text-slate-400">Min: {med.minStock}</div>
                         </td>
                         <td className="p-3.5 font-mono text-slate-600">Rs.{med.unitCost.toFixed(2)}</td>
-                        <td className="p-3.5 pr-4 text-right font-mono font-bold text-teal-800">
+                        <td className="p-3.5 font-mono font-bold text-teal-800">
                           Rs.{med.retailPrice.toFixed(2)}
+                        </td>
+                        <td className="p-3.5 pr-4 text-right" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={() => onOpenEditMedicine?.(med)}
+                            className="inline-flex items-center gap-1 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer"
+                            title="Edit Medicine / Add New Stock Arrival"
+                          >
+                            <Edit className="w-3 h-3" />
+                            <span>Edit / Stock</span>
+                          </button>
                         </td>
                       </tr>
                     );
@@ -352,7 +365,15 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ medicines, onOpenA
                     <span className="font-semibold text-slate-800 font-mono">Rs.{selectedMed.unitCost.toFixed(2)}</span>
                   </div>
                 </div>
-                <div className="pt-2">
+                <div className="pt-2 space-y-2">
+                  <button
+                    onClick={() => onOpenEditMedicine?.(selectedMed)}
+                    className="w-full flex items-center justify-center gap-2 bg-teal-800 hover:bg-teal-900 text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-sm"
+                  >
+                    <Edit className="w-4 h-4" />
+                    <span>EDIT DETAILS / ADD NEW STOCK</span>
+                  </button>
+
                   {deleteConfirmId === selectedMed.id ? (
                     <div className="bg-red-50 border border-red-200 rounded-lg p-3 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
                       <p className="text-red-800 font-bold leading-tight text-center">
@@ -388,7 +409,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ medicines, onOpenA
                   ) : (
                     <button
                       onClick={() => setDeleteConfirmId(selectedMed.id)}
-                      className="w-full flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-4 py-3 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-sm"
+                      className="w-full flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-4 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-sm"
                     >
                       <Trash2 className="w-4 h-4" />
                       <span>DELETE FROM DATABASE</span>

@@ -61,3 +61,27 @@ export interface ShiftInfo {
   drawerCash: number;
   terminal: string;
 }
+
+export interface KhataTransaction {
+  id: string;
+  date: string;
+  time: string;
+  type: 'CREDIT_PURCHASE' | 'PAYMENT_RECEIVED';
+  description: string;
+  amount: number;
+  invoiceNumber?: string;
+  remainingBalance: number;
+}
+
+export interface Customer {
+  id: string;
+  name: string;
+  phone: string;
+  cnic?: string;
+  address?: string;
+  totalDebt: number; // Udhar balance in PKR
+  creditLimit: number;
+  lastTransactionDate?: string;
+  transactions: KhataTransaction[];
+}
+

@@ -5,14 +5,12 @@ import {
   Minus, 
   Trash2, 
   Printer, 
-  Share2, 
-  DollarSign, 
-  CreditCard, 
-  QrCode, 
-  FileText, 
+  Save, 
   CheckCircle2,
   ShieldCheck,
-  UserCheck
+  UserCheck,
+  CreditCard,
+  DollarSign
 } from 'lucide-react';
 import { Medicine, CartItem, ShiftInfo } from '../types';
 
@@ -20,7 +18,7 @@ interface PosViewProps {
   medicines: Medicine[];
   cart: CartItem[];
   setCart: React.Dispatch<React.SetStateAction<CartItem[]>>;
-  onCompleteSale: () => void;
+  onCompleteSale: (shouldPrint: boolean) => void;
   onOpenAddMedicine: () => void;
   shift: ShiftInfo;
 }
@@ -28,7 +26,7 @@ interface PosViewProps {
 export const PosView: React.FC<PosViewProps> = ({ medicines, cart, setCart, onCompleteSale, onOpenAddMedicine, shift }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [cashTendered, setCashTendered] = useState<number>(1000.00);
-  const [customer, setCustomer] = useState({ name: 'Walk-in Patient', id: '#CUST-001', loyalty: '0 Pts' });
+  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CREDIT / A/R' | 'VISA CARD'>('CASH');
 
   const addToCart = (med: Medicine) => {
     setCart(prev => {
@@ -67,25 +65,28 @@ export const PosView: React.FC<PosViewProps> = ({ medicines, cart, setCart, onCo
     : medicines.filter(m => m.category.toUpperCase().includes(selectedCategory));
 
   return (
-    <div className="p-6 max-w-[1600px] mx-auto select-none space-y-4">
+    <div className="p-4 sm:p-6 max-w-[1600px] mx-auto select-none space-y-4">
       {/* Top Live Dispensing Bar */}
-      <div className="bg-slate-900 text-white px-4 py-2.5 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs font-medium shadow-sm">
-        <div className="flex items-center gap-3">
-          <span className="font-bold text-teal-400">⚡ LIVE DISPENSING / COUNTER SALES</span>
-          <span className="text-slate-400">|</span>
-          <span>TERM-01</span>
-          <span className="text-slate-400">|</span>
+      <div className="bg-slate-900 text-white px-4 py-2.5 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs font-medium shadow-xs">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="font-bold text-teal-400 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            LIVE DISPENSING / COUNTER SALES
+          </span>
+          <span className="text-slate-600 hidden sm:inline">|</span>
+          <span className="hidden sm:inline">TERM-01</span>
+          <span className="text-slate-600 hidden sm:inline">|</span>
           <span>SHIFT: {shift.shiftId}</span>
-          <span className="text-slate-400">|</span>
-          <span className="font-mono text-emerald-400">DRAWER: Rs. {shift.drawerCash.toLocaleString('en-PK')}</span>
+          <span className="text-slate-600 hidden sm:inline">|</span>
+          <span className="font-mono text-emerald-400">DRAWER CASH: Rs. {shift.drawerCash.toLocaleString('en-PK')}</span>
         </div>
 
         <div className="flex items-center gap-2">
           <button 
             onClick={onOpenAddMedicine}
-            className="bg-teal-700 hover:bg-teal-800 text-white px-3 py-1 rounded font-bold text-[11px] cursor-pointer flex items-center gap-1"
+            className="bg-teal-700 hover:bg-teal-800 text-white px-3 py-1 rounded-lg font-bold text-[11px] cursor-pointer flex items-center gap-1 shadow-xs transition-colors"
           >
-            <Plus className="w-3 h-3" />
+            <Plus className="w-3.5 h-3.5" />
             <span>Add Medicine F3</span>
           </button>
         </div>
@@ -95,159 +96,121 @@ export const PosView: React.FC<PosViewProps> = ({ medicines, cart, setCart, onCo
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left 2 Cols: Medicine Grid */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3 flex-1">
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3 w-full sm:w-auto">
               <Scan className="w-5 h-5 text-teal-700 shrink-0" />
               <input
                 type="text"
-                placeholder="Scan Barcode / NDC or Type Brand, Generic Name..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-mono font-medium text-slate-800 focus:outline-none focus:border-teal-700"
+                placeholder="Scan Barcode or Type Medicine Name..."
+                className="w-full sm:w-80 bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs font-medium focus:outline-none focus:border-teal-700"
               />
             </div>
-            <div className="flex items-center gap-3 shrink-0">
-              <span className="text-[11px] bg-teal-50 text-teal-800 px-2.5 py-1 rounded font-bold border border-teal-200">
-                {medicines.length} Items in Store
-              </span>
+
+            <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
+              {['ALL', 'ANTIBIOTIC', 'ANALGESIC', 'COLD CHAIN', 'SURGICAL'].map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                    selectedCategory === cat
+                      ? 'bg-teal-800 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Category Filter Pills */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs font-semibold">
-            {['ALL', 'ANTIBIOTIC', 'ANALGESIC', 'SURGICAL', 'COLD CHAIN'].map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-3.5 py-2 rounded-lg whitespace-nowrap transition-all cursor-pointer ${
-                  selectedCategory === cat 
-                    ? 'bg-teal-800 text-white shadow-sm' 
-                    : 'bg-white hover:bg-slate-100 border border-slate-200 text-slate-700'
-                }`}
-              >
-                {cat === 'ALL' ? `ALL STOCK (${medicines.length})` : cat}
-              </button>
-            ))}
-          </div>
-
-          {/* Medicine Card Grid */}
-          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm min-h-[400px]">
-            {medicines.length === 0 ? (
-              <div className="text-center py-16 space-y-3">
-                <div className="w-12 h-12 rounded-full bg-teal-50 text-teal-700 flex items-center justify-center mx-auto">
-                  <Scan className="w-6 h-6" />
-                </div>
-                <h4 className="text-sm font-bold text-slate-900">No Medicines in Store Inventory</h4>
-                <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                  Your store database is fresh. Add medicines using F3 to populate the POS catalog and start selling.
-                </p>
-                <button
+          {/* Product Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            {filteredMedicines.length === 0 ? (
+              <div className="col-span-full bg-white p-12 rounded-xl border border-slate-200 text-center text-slate-400 text-xs space-y-2">
+                <p>No active medicines match this category filter.</p>
+                <button 
                   onClick={onOpenAddMedicine}
-                  className="mt-2 bg-teal-800 hover:bg-teal-900 text-white px-4 py-2 rounded-lg text-xs font-semibold transition-all inline-flex items-center gap-1.5 cursor-pointer"
+                  className="bg-teal-800 text-white px-3 py-1.5 rounded-lg text-xs font-bold"
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Add New Medicine F3</span>
+                  Add Medicine F3
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {filteredMedicines.map((med) => (
-                  <div 
-                    key={med.id}
-                    onClick={() => addToCart(med)}
-                    className="bg-white p-4 rounded-xl border border-slate-200 hover:border-teal-700 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group"
-                  >
-                    <div>
-                      <div className="flex items-start justify-between gap-2 mb-1.5">
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-teal-50 text-teal-800 border border-teal-200">
-                          {med.category}
-                        </span>
-                        <span className="text-sm font-extrabold text-slate-900 font-mono">Rs.{med.retailPrice.toFixed(2)}</span>
-                      </div>
-
-                      <h4 className="text-xs font-bold text-slate-900 group-hover:text-teal-700 transition-colors">{med.name}</h4>
-                      <p className="text-[10px] text-slate-500 mt-0.5 truncate">{med.genericName}</p>
-
-                      <div className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-2 gap-2 text-[10px] text-slate-600">
-                        <div>
-                          <span className="text-slate-400 block">RACK/LOC:</span>
-                          <span className="font-semibold text-slate-800">{med.shelfLocation}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 block">BATCH:</span>
-                          <span className="font-mono font-semibold text-slate-800">{med.batchNumber}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 flex items-center justify-between">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                        med.stock <= med.minStock ? 'bg-red-100 text-red-700' : 'bg-teal-100 text-teal-800'
+              filteredMedicines.map(med => (
+                <div 
+                  key={med.id}
+                  onClick={() => addToCart(med)}
+                  className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs hover:border-teal-700 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-2 group"
+                >
+                  <div>
+                    <div className="flex items-start justify-between">
+                      <h4 className="text-xs font-bold text-slate-900 group-hover:text-teal-800 transition-colors line-clamp-1">{med.name}</h4>
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 ${
+                        med.stock <= med.minStock ? 'bg-red-100 text-red-700' : 'bg-teal-50 text-teal-800'
                       }`}>
-                        {med.stock} {med.unit.toUpperCase()}
-                      </span>
-                      <span className="text-xs font-bold text-teal-700 group-hover:translate-x-1 transition-transform">
-                        + Add
+                        {med.stock} {med.unit}
                       </span>
                     </div>
+                    <p className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">{med.genericName}</p>
+                    <p className="text-[10px] text-slate-400">Shelf: {med.shelfLocation}</p>
                   </div>
-                ))}
-              </div>
+
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                    <span className="text-xs font-mono font-extrabold text-teal-800">Rs.{med.retailPrice.toFixed(2)}</span>
+                    <span className="text-[10px] bg-teal-50 text-teal-800 px-2 py-0.5 rounded font-bold group-hover:bg-teal-800 group-hover:text-white transition-colors">
+                      + ADD
+                    </span>
+                  </div>
+                </div>
+              ))
             )}
           </div>
         </div>
 
         {/* Right 1 Col: Cart & Checkout Panel */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col h-fit sticky top-20">
-          <div className="p-4 border-b border-slate-200 bg-slate-50 rounded-t-xl flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-bold text-slate-900">{customer.name}</span>
-                <span className="text-[10px] font-mono font-bold bg-teal-100 text-teal-800 px-1.5 py-0.5 rounded">{customer.id}</span>
-              </div>
-              <p className="text-[10px] text-slate-500 mt-0.5">Loyalty: 0 Pts • AR Balance: Rs.0.00</p>
-            </div>
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between overflow-hidden">
+          {/* Cart Header */}
+          <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+            <h3 className="text-sm font-bold text-slate-900">Current Dispensing Cart</h3>
+            <span className="text-xs font-mono font-bold bg-teal-100 text-teal-800 px-2 py-0.5 rounded">
+              {cart.reduce((a, b) => a + b.quantity, 0)} Items
+            </span>
           </div>
 
           {/* Cart Items List */}
-          <div className="p-4 space-y-3 max-h-72 overflow-y-auto scrollbar-thin">
+          <div className="p-4 flex-1 overflow-y-auto max-h-[350px] divide-y divide-slate-100 space-y-2">
             {cart.length === 0 ? (
-              <div className="text-center py-8 text-slate-400 text-xs">
-                Cart is empty. Click medicines on the left to add items and compute billing.
+              <div className="py-16 text-center text-slate-400 text-xs">
+                Cart is empty. Click any medicine on the left to start billing.
               </div>
             ) : (
               cart.map((item) => (
-                <div key={item.medicine.id} className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h5 className="text-xs font-bold text-slate-900">{item.medicine.name}</h5>
-                      <p className="text-[10px] text-slate-500">
-                        {item.medicine.batchNumber} • Rs.{item.medicine.retailPrice.toFixed(2)} each
-                      </p>
-                    </div>
-                    <span className="text-xs font-bold font-mono text-slate-900">
-                      Rs.{(item.medicine.retailPrice * item.quantity).toFixed(2)}
-                    </span>
+                <div key={item.medicine.id} className="pt-2 flex items-center justify-between gap-2 text-xs">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-slate-900 truncate">{item.medicine.name}</p>
+                    <p className="text-[10px] text-slate-500 font-mono">
+                      Rs.{item.medicine.retailPrice.toFixed(2)} × {item.quantity}
+                    </p>
                   </div>
 
-                  <div className="flex items-center justify-between pt-1">
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => updateQuantity(item.medicine.id, -1)}
-                        className="w-6 h-6 rounded bg-white border border-slate-300 flex items-center justify-center text-slate-700 hover:bg-slate-100"
-                      >
-                        <Minus className="w-3 h-3" />
-                      </button>
-                      <span className="text-xs font-bold font-mono w-6 text-center">{item.quantity}</span>
-                      <button 
-                        onClick={() => updateQuantity(item.medicine.id, 1)}
-                        className="w-6 h-6 rounded bg-white border border-slate-300 flex items-center justify-center text-slate-700 hover:bg-slate-100"
-                      >
-                        <Plus className="w-3 h-3" />
-                      </button>
-                    </div>
+                  <div className="flex items-center gap-1.5">
+                    <button 
+                      onClick={() => updateQuantity(item.medicine.id, -1)}
+                      className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center font-bold"
+                    >
+                      -
+                    </button>
+                    <span className="font-bold font-mono px-1">{item.quantity}</span>
+                    <button 
+                      onClick={() => updateQuantity(item.medicine.id, 1)}
+                      className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 flex items-center justify-center font-bold"
+                    >
+                      +
+                    </button>
 
                     <button 
                       onClick={() => removeItem(item.medicine.id)}
-                      className="text-red-500 hover:text-red-700 p-1"
+                      className="text-red-500 hover:text-red-700 p-1 ml-1 cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -258,13 +221,13 @@ export const PosView: React.FC<PosViewProps> = ({ medicines, cart, setCart, onCo
           </div>
 
           {/* Calculation Summary */}
-          <div className="p-4 border-t border-slate-200 bg-slate-50 space-y-1.5 text-xs">
+          <div className="p-4 border-t border-slate-200 bg-slate-50 space-y-1 text-xs">
             <div className="flex justify-between text-slate-600">
-              <span>Gross Subtotal ({cart.reduce((a, b) => a + b.quantity, 0)} items):</span>
+              <span>Gross Subtotal:</span>
               <span className="font-mono font-bold text-slate-900">Rs.{subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-slate-600">
-              <span>Sales Tax / VAT (2.5%):</span>
+              <span>Tax (2.5%):</span>
               <span className="font-mono font-bold text-slate-900">Rs.{tax.toFixed(2)}</span>
             </div>
           </div>
@@ -278,8 +241,8 @@ export const PosView: React.FC<PosViewProps> = ({ medicines, cart, setCart, onCo
             <h3 className="text-2xl font-extrabold font-mono text-white">Rs.{netTotal.toFixed(2)}</h3>
           </div>
 
-          {/* Fast Cash Tender */}
-          <div className="p-4 space-y-3 bg-white">
+          {/* Fast Cash Tender & Change */}
+          <div className="p-4 space-y-3 bg-white border-t border-slate-100">
             <div className="flex items-center justify-between text-xs font-bold text-slate-700">
               <span>CASH TENDERED:</span>
               <span className="text-emerald-600 font-mono">CHANGE DUE: Rs.{changeDue.toFixed(2)}</span>
@@ -290,9 +253,9 @@ export const PosView: React.FC<PosViewProps> = ({ medicines, cart, setCart, onCo
                 <button
                   key={amt}
                   onClick={() => setCashTendered(amt)}
-                  className={`py-2 rounded-lg border transition-all ${
+                  className={`py-1.5 rounded-lg border transition-all ${
                     cashTendered === amt 
-                      ? 'bg-teal-50 border-teal-700 text-teal-900 shadow-sm' 
+                      ? 'bg-teal-50 border-teal-700 text-teal-900 shadow-xs' 
                       : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
                   }`}
                 >
@@ -302,17 +265,33 @@ export const PosView: React.FC<PosViewProps> = ({ medicines, cart, setCart, onCo
             </div>
           </div>
 
-          {/* Bottom Action Button */}
+          {/* TWO CHECKOUT BUTTONS: Save Only vs Save & Print */}
           <div className="p-4 bg-slate-50 border-t border-slate-200 rounded-b-xl space-y-2">
             <button
-              onClick={onCompleteSale}
+              onClick={() => onCompleteSale(false)}
               disabled={cart.length === 0}
-              className={`w-full font-bold py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer text-sm ${
-                cart.length === 0 ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-teal-800 hover:bg-teal-900 text-white'
+              className={`w-full font-bold py-2.5 rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer text-xs ${
+                cart.length === 0 
+                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
+                  : 'bg-emerald-700 hover:bg-emerald-800 text-white'
               }`}
             >
-              <span>DISPENSE & SAVE TO FIRESTORE</span>
-              <span className="bg-teal-950 px-2 py-0.5 rounded text-[10px] font-mono">F12</span>
+              <Save className="w-4 h-4" />
+              <span>SAVE TO FIRESTORE ONLY (NO PRINT)</span>
+            </button>
+
+            <button
+              onClick={() => onCompleteSale(true)}
+              disabled={cart.length === 0}
+              className={`w-full font-bold py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer text-xs ${
+                cart.length === 0 
+                  ? 'bg-slate-300 text-slate-500 cursor-not-allowed' 
+                  : 'bg-teal-800 hover:bg-teal-900 text-white'
+              }`}
+            >
+              <Printer className="w-4 h-4" />
+              <span>SAVE & PRINT THERMAL RECEIPT</span>
+              <span className="bg-teal-950 px-1.5 py-0.5 rounded text-[10px] font-mono">F12</span>
             </button>
           </div>
         </div>

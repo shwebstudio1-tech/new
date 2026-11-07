@@ -63,8 +63,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, expectedCr
       <div className="w-full max-w-md relative z-10 space-y-6">
         {/* Brand Header */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-teal-800 text-white shadow-lg shadow-teal-900/20 mb-1 border border-teal-700/30">
-            <Store className="w-8 h-8" />
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-teal-800 text-white shadow-xl shadow-teal-900/30 mb-2 border-2 border-teal-700/40 ring-4 ring-teal-500/10">
+            <Store className="w-10 h-10" />
           </div>
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">TALHA SURGICAL</h1>
           <p className="text-xs font-bold text-teal-800 tracking-wider uppercase">Medicine Shop & Dispensary POS</p>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, ShoppingCart, Plus, Bell, X, ShieldCheck, AlertTriangle, LogOut, ChevronDown } from 'lucide-react';
+import { Search, ShoppingCart, Plus, Bell, X, ShieldCheck, AlertTriangle, LogOut, ChevronDown, Menu, BookOpen, Trash2, Check, RefreshCw } from 'lucide-react';
 import { TabType, Medicine } from '../types';
 
 interface HeaderProps {
@@ -11,6 +11,8 @@ interface HeaderProps {
   medicines: Medicine[];
   userProfile?: { name: string; email: string; role: string; photoURL?: string } | null;
   onSignOut?: () => void;
+  onToggleMobileSidebar?: () => void;
+  onResetDailyData?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
@@ -21,17 +23,45 @@ export const Header: React.FC<HeaderProps> = ({
   setSearchTerm,
   medicines,
   userProfile,
-  onSignOut
+  onSignOut,
+  onToggleMobileSidebar,
+  onResetDailyData
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
+  const [isNotificationsCleared, setIsNotificationsCleared] = useState(false);
+  const [doNotShowAgain, setDoNotShowAgain] = useState(() => {
+    return localStorage.getItem('talha_disable_stock_alerts') === 'true';
+  });
+
   const lowStock = medicines.filter(m => m.stock <= m.minStock);
+  const hasActiveBadge = !isNotificationsCleared && !doNotShowAgain && lowStock.length > 0;
+
+  const handleToggleDoNotShowAgain = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const checked = e.target.checked;
+    setDoNotShowAgain(checked);
+    localStorage.setItem('talha_disable_stock_alerts', checked ? 'true' : 'false');
+  };
+
+  const handleClearNotifications = () => {
+    setIsNotificationsCleared(true);
+  };
 
   return (
-    <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between sticky top-0 z-30 select-none">
-      {/* Search Bar */}
-      <div className="flex items-center gap-3 w-96">
-        <div className="relative w-full">
+    <header className="h-16 bg-white border-b border-slate-200 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30 select-none">
+      {/* Left: Mobile Menu Toggle & Brand Logo/Search */}
+      <div className="flex items-center gap-3 flex-1 max-w-md">
+        <button
+          onClick={onToggleMobileSidebar}
+          className="lg:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100 cursor-pointer"
+          title="Toggle Navigation Menu"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+
+        {/* Desktop Search Bar */}
+        <div className="hidden sm:block relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
@@ -40,18 +70,35 @@ export const Header: React.FC<HeaderProps> = ({
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-14 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-teal-700 focus:bg-white transition-all shadow-inner"
           />
-          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-mono bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-bold">
+          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-mono bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-bold hidden md:inline-block">
             Ctrl+K
           </span>
         </div>
+
+        {/* Mobile Search Toggle Button */}
+        <button
+          onClick={() => setShowMobileSearch(!showMobileSearch)}
+          className="sm:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100 cursor-pointer"
+        >
+          <Search className="w-5 h-5" />
+        </button>
       </div>
 
       {/* Center Status / Quick Actions */}
-      <div className="flex items-center gap-4">
-        {/* System Online badge */}
+      <div className="flex items-center gap-2 sm:gap-4">
+        {/* Terminal Online badge */}
         <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-600">
           <span>Terminal-01</span>
         </div>
+
+        {/* Khata Quick Access */}
+        <button
+          onClick={() => setCurrentTab('customers')}
+          className="hidden md:flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-xs"
+        >
+          <BookOpen className="w-3.5 h-3.5" />
+          <span>Khata / Udhar</span>
+        </button>
 
         {/* Quick Sale F2 */}
         <button
@@ -59,17 +106,17 @@ export const Header: React.FC<HeaderProps> = ({
             setCurrentTab('pos');
             onOpenQuickSale();
           }}
-          className="flex items-center gap-2 bg-teal-800 hover:bg-teal-900 text-white px-3.5 py-2 rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer"
+          className="flex items-center gap-1.5 bg-teal-800 hover:bg-teal-900 text-white px-3 sm:px-3.5 py-2 rounded-lg text-xs font-semibold shadow-xs transition-all cursor-pointer"
         >
           <ShoppingCart className="w-3.5 h-3.5" />
-          <span>Quick Sale</span>
+          <span className="hidden sm:inline">Quick Sale</span>
           <span className="bg-teal-950/60 text-teal-200 px-1.5 py-0.5 rounded text-[10px] font-mono">F2</span>
         </button>
 
         {/* Add Medicine F3 */}
         <button
           onClick={onOpenAddMedicine}
-          className="flex items-center gap-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 px-3.5 py-2 rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer"
+          className="hidden sm:flex items-center gap-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 px-3.5 py-2 rounded-lg text-xs font-semibold shadow-xs transition-all cursor-pointer"
         >
           <Plus className="w-3.5 h-3.5 text-teal-700" />
           <span>Add Medicine</span>
@@ -77,8 +124,8 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
       </div>
 
-      {/* User Profile & Notifications */}
-      <div className="flex items-center gap-3">
+      {/* Right User Profile & Notifications */}
+      <div className="flex items-center gap-2 sm:gap-3">
         {/* Notification bell & dropdown */}
         <div className="relative">
           <button 
@@ -86,8 +133,8 @@ export const Header: React.FC<HeaderProps> = ({
             className="w-9 h-9 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-colors relative cursor-pointer"
           >
             <Bell className="w-4 h-4" />
-            {lowStock.length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-600 text-white font-bold text-[10px] w-4 h-4 rounded-full flex items-center justify-center shadow-sm">
+            {hasActiveBadge && (
+              <span className="absolute -top-1 -right-1 bg-red-600 text-white font-bold text-[10px] w-4 h-4 rounded-full flex items-center justify-center shadow-xs animate-pulse">
                 {lowStock.length}
               </span>
             )}
@@ -95,82 +142,108 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Notifications Dropdown Panel */}
           {showNotifications && (
-            <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden animate-in fade-in zoom-in duration-150">
+            <div className="absolute right-0 mt-2 w-72 sm:w-88 bg-white rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden animate-in fade-in zoom-in duration-150">
               <div className="p-3 bg-teal-800 text-white flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs font-bold">
                   <Bell className="w-3.5 h-3.5" />
                   <span>Store Notifications & Alerts</span>
                 </div>
-                <button onClick={() => setShowNotifications(false)} className="text-teal-200 hover:text-white p-1">
-                  <X className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1">
+                  {!isNotificationsCleared && lowStock.length > 0 && (
+                    <button
+                      onClick={handleClearNotifications}
+                      className="text-[10px] font-bold bg-teal-900 hover:bg-teal-950 text-teal-100 px-2 py-0.5 rounded border border-teal-700 cursor-pointer"
+                      title="Clear notification alerts"
+                    >
+                      Clear All
+                    </button>
+                  )}
+                  <button onClick={() => setShowNotifications(false)} className="text-teal-200 hover:text-white p-1 cursor-pointer">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               <div className="p-3 space-y-2.5 max-h-72 overflow-y-auto text-xs">
-                {lowStock.length > 0 ? (
+                {(!isNotificationsCleared && !doNotShowAgain && lowStock.length > 0) ? (
                   lowStock.map(med => (
-                    <div key={med.id} className="p-2.5 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2.5">
-                      <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-bold text-red-900">Low Stock: {med.name}</p>
-                        <p className="text-[10px] text-red-700">Stock is at {med.stock} {med.unit} (Min: {med.minStock})</p>
+                    <div key={med.id} className="p-2.5 bg-red-50 border border-red-200 rounded-lg flex items-start justify-between gap-2">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-bold text-red-900">Low Stock: {med.name}</p>
+                          <p className="text-[10px] text-red-700">Stock is at {med.stock} {med.unit} (Min: {med.minStock})</p>
+                        </div>
                       </div>
+                      <button
+                        onClick={() => {
+                          setShowNotifications(false);
+                          setCurrentTab('inventory');
+                        }}
+                        className="text-[10px] font-bold text-red-700 hover:underline shrink-0"
+                      >
+                        Update Stock →
+                      </button>
                     </div>
                   ))
                 ) : (
-                  <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-2.5 text-emerald-900">
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-2.5 text-emerald-900">
                     <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
                     <div>
-                      <p className="font-bold">Inventory Optimal</p>
-                      <p className="text-[10px] text-emerald-700">All active stock levels are above safety thresholds.</p>
+                      <p className="font-bold">Notifications Cleared / Optimal</p>
+                      <p className="text-[10px] text-emerald-700">No active stock alerts pending attention.</p>
                     </div>
                   </div>
                 )}
 
-                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg flex items-center gap-2.5 text-slate-800">
-                  <div className="w-2 h-2 rounded-full bg-slate-400 shrink-0"></div>
-                  <div>
-                    <p className="font-bold text-slate-700">Database Connection</p>
-                    <p className="text-[10px] text-slate-500">Active terminal session.</p>
-                  </div>
+                {/* Do Not Show Again Toggle Checkbox */}
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-600">
+                  <label className="flex items-center gap-2 cursor-pointer font-medium select-none">
+                    <input
+                      type="checkbox"
+                      checked={doNotShowAgain}
+                      onChange={handleToggleDoNotShowAgain}
+                      className="rounded border-slate-300 text-teal-700 focus:ring-teal-700"
+                    />
+                    <span>Do not show low stock popups again</span>
+                  </label>
                 </div>
               </div>
 
-              <div className="p-2.5 bg-slate-100 border-t border-slate-200 text-center">
+              <div className="p-2.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs">
+                <button 
+                  onClick={onOpenAddMedicine}
+                  className="text-[11px] font-bold text-teal-800 hover:underline cursor-pointer flex items-center gap-1"
+                >
+                  <Plus className="w-3 h-3 text-teal-700" />
+                  <span>Add New Medicine</span>
+                </button>
                 <button 
                   onClick={() => {
                     setShowNotifications(false);
                     setCurrentTab('inventory');
                   }}
-                  className="text-xs font-bold text-teal-800 hover:underline cursor-pointer"
+                  className="text-[11px] font-bold text-slate-600 hover:underline cursor-pointer"
                 >
-                  View All Inventory Items →
+                  View Inventory →
                 </button>
               </div>
             </div>
           )}
         </div>
 
-        <div className="h-8 w-px bg-slate-200"></div>
+        <div className="h-8 w-px bg-slate-200 hidden sm:block"></div>
 
         {/* User Profile & Menu */}
         <div className="relative">
           <button
             onClick={() => setShowProfileMenu(!showProfileMenu)}
-            className="flex items-center gap-2.5 p-1 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer text-left"
+            className="flex items-center gap-2 p-1 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer text-left"
           >
-            {userProfile?.photoURL ? (
-              <img 
-                src={userProfile.photoURL} 
-                alt={userProfile.name} 
-                className="w-9 h-9 rounded-full object-cover shadow-sm ring-2 ring-teal-700/20"
-              />
-            ) : (
-              <div className="w-9 h-9 rounded-full bg-teal-800 text-white font-bold text-xs flex items-center justify-center shadow-sm ring-2 ring-teal-700/20">
-                {(userProfile?.name || 'AD').split(' ').map(n => n[0]).join('').slice(0, 2)}
-              </div>
-            )}
-            <div className="hidden sm:block">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-teal-800 text-white font-bold text-xs flex items-center justify-center shadow-xs ring-2 ring-teal-700/20">
+              {(userProfile?.name || 'AD').split(' ').map(n => n[0]).join('').slice(0, 2)}
+            </div>
+            <div className="hidden md:block">
               <h4 className="text-xs font-bold text-slate-900 leading-tight">
                 {userProfile?.name || 'Admin / Owner'}
               </h4>
@@ -192,6 +265,19 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
               </div>
 
+              {onResetDailyData && (
+                <button
+                  onClick={() => {
+                    setShowProfileMenu(false);
+                    onResetDailyData();
+                  }}
+                  className="w-full flex items-center gap-2 p-2.5 rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  <RefreshCw className="w-4 h-4 text-teal-700" />
+                  <span>Reset Today's Revenue Register</span>
+                </button>
+              )}
+
               {onSignOut && (
                 <button
                   onClick={() => {
@@ -208,6 +294,26 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
       </div>
+
+      {/* Mobile Expandable Search Bar */}
+      {showMobileSearch && (
+        <div className="absolute left-0 top-16 w-full bg-white border-b border-slate-200 p-3 shadow-md sm:hidden z-20 animate-in slide-in-from-top-2 duration-150">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              autoFocus
+              placeholder="Search Medicine, SKU, Patient..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-8 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-teal-700"
+            />
+            <button onClick={() => setShowMobileSearch(false)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </header>
   );
 };
