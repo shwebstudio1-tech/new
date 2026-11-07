@@ -162,6 +162,7 @@ export default function App() {
               invoices={invoices} 
               setCurrentTab={setCurrentTab}
               onOpenQuickSale={() => setIsQuickSaleOpen(true)}
+              onOpenAddMedicine={() => setIsAddMedicineOpen(true)}
             />
           )}
 
@@ -171,6 +172,7 @@ export default function App() {
               cart={cart}
               setCart={setCart}
               onCompleteSale={handleCompleteSale}
+              onOpenAddMedicine={() => setIsAddMedicineOpen(true)}
             />
           )}
 
@@ -189,7 +191,11 @@ export default function App() {
           )}
 
           {currentTab === 'ai-assistant' && (
-            <AiAssistantView />
+            <AiAssistantView 
+              medicines={medicines}
+              invoices={invoices}
+              onOpenAddMedicine={() => setIsAddMedicineOpen(true)}
+            />
           )}
 
           {currentTab === 'purchases' && (

@@ -11,33 +11,61 @@ import {
   Download,
   AlertTriangle,
   CheckCircle2,
-  ChevronRight
+  ChevronRight,
+  Plus
 } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { aiForecastData } from '../mockData';
+import { Medicine, Invoice } from '../types';
 
-export const AiAssistantView: React.FC = () => {
-  const [forecastHorizon, setForecastHorizon] = useState<'14days' | '30days' | '90days'>('14days');
+interface AiAssistantViewProps {
+  medicines: Medicine[];
+  invoices: Invoice[];
+  onOpenAddMedicine: () => void;
+}
+
+export const AiAssistantView: React.FC<AiAssistantViewProps> = ({ medicines, invoices, onOpenAddMedicine }) => {
   const [chatInput, setChatInput] = useState('');
+  const lowStock = medicines.filter(m => m.stock <= m.minStock);
+  const totalRev = invoices.reduce((s, i) => s + i.totalAmount, 0);
+
   const [messages, setMessages] = useState([
     {
       sender: 'copilot',
-      text: 'Based on regional epidemiological reporting from Dr. Farhan Ali’s Pulmonary Clinic and acute respiratory infections (+38% YoY), coupled with an Air Quality Index peak (AQI 320 smog wave), pediatric & adult amoxicillin/clavulanic acid prescriptions will peak between Nov 8–18. Current stock (14 boxes) creates critical runout risk in 72 hours. Recommended safety stock: 150 boxes before supplier order deadline on Thursday 3:00 PM.',
-      action: 'ACTIONABLE RECOMMENDATION: GSK PO PO-GSK-9921'
+      text: `Hello! I am your ZenPharma Store Manager & Clinical Copilot. Your pharmacy database is currently fresh (${medicines.length} products, ${invoices.length} sales). I will automatically alert you when any product is running low or approaching expiry, help you add new medicines, and calculate bills or profit summaries!`,
+      action: medicines.length === 0 ? 'RECOMMENDATION: ADD YOUR FIRST MEDICINE VIA F3' : 'SYSTEM STATUS: FULLY SYNCHRONIZED'
     }
   ]);
 
   const handleSendChat = (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
+
+    const query = chatInput.toLowerCase();
+    let reply = "";
+    let actionText = "";
+
+    if (query.includes('low') || query.includes('stock') || query.includes('alert')) {
+      if (lowStock.length === 0) {
+        reply = `Good news! All ${medicines.length} active products in your inventory have healthy stock levels above minimum thresholds. No low stock alerts right now.`;
+        actionText = 'INVENTORY STATUS: 100% OPTIMAL';
+      } else {
+        reply = `Warning! You have ${lowStock.length} items running low: ${lowStock.map(m => `${m.name} (${m.stock} ${m.unit} left)`).join(', ')}. Please reorder soon.`;
+        actionText = `ACTION REQUIRED: REORDER ${lowStock.length} ITEMS`;
+      }
+    } else if (query.includes('add') || query.includes('medicine') || query.includes('product')) {
+      reply = `You can easily add new medicines or surgical items by clicking the "Add Medicine F3" button in the top header or catalog view. That will immediately index them into Firestore.`;
+      actionText = 'SHORTCUT: PRESS F3 TO ADD MEDICINE';
+    } else if (query.includes('sale') || query.includes('total') || query.includes('profit') || query.includes('bill')) {
+      reply = `Financial summary: Total sales revenue recorded so far is Rs.${totalRev.toFixed(2)} across ${invoices.length} invoices. All calculations are tied to real Firestore records.`;
+      actionText = `SALES AUDIT: Rs.${totalRev.toFixed(2)} REVENUE`;
+    } else {
+      reply = `As your store manager AI, I am monitoring your inventory (${medicines.length} items) and sales (${invoices.length} transactions). Let me know if you need stock alerts, profit calculations, or inventory audits!`;
+      actionText = 'ZENPHARMA COPILOT ACTIVE';
+    }
+
     setMessages(prev => [
       ...prev,
       { sender: 'user', text: chatInput, action: '' },
-      { 
-        sender: 'copilot', 
-        text: `Analysis complete for "${chatInput}". Autonomous telemetry confirms stock reserves are sufficient for normal demand, but reorder triggers are active for cold chain items.`,
-        action: 'RECOMMENDED ACTION: REVIEW AUTO-REORDER'
-      }
+      { sender: 'copilot', text: reply, action: actionText }
     ]);
     setChatInput('');
   };
@@ -48,306 +76,147 @@ export const AiAssistantView: React.FC = () => {
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-bold text-slate-900 tracking-tight">AI Assistant & Demand Forecasting</h2>
+            <h2 className="text-lg font-bold text-slate-900 tracking-tight">AI Assistant & Inventory Manager</h2>
             <span className="bg-emerald-50 text-emerald-800 text-[10px] font-bold px-2.5 py-1 rounded-full border border-emerald-200 flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              MODEL: ZENPHARMA-PREDICT V3.2 • REAL-TIME TELEMETRY ACTIVE
+              ZENPHARMA COPILOT • REAL-TIME FIRESTORE AI
             </span>
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">Autonomous predictive inventory reordering, seasonal disease surge analytics, and conversational pharmacy copilot for clinical dispatch precision.</p>
+          <p className="text-xs text-slate-500 mt-0.5">Autonomous inventory monitoring, low-stock advance warnings, billing assistance, and pharmacy store management.</p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="bg-slate-100 p-1 rounded-lg flex items-center text-xs font-medium">
-            <button 
-              onClick={() => setForecastHorizon('14days')}
-              className={`px-3 py-1.5 rounded-md transition-all ${forecastHorizon === '14days' ? 'bg-teal-800 text-white font-bold shadow-sm' : 'text-slate-600'}`}
-            >
-              Next 14 Days
-            </button>
-            <button 
-              onClick={() => setForecastHorizon('30days')}
-              className={`px-3 py-1.5 rounded-md transition-all ${forecastHorizon === '30days' ? 'bg-teal-800 text-white font-bold shadow-sm' : 'text-slate-600'}`}
-            >
-              Next 30 Days
-            </button>
-            <button 
-              onClick={() => setForecastHorizon('90days')}
-              className={`px-3 py-1.5 rounded-md transition-all ${forecastHorizon === '90days' ? 'bg-teal-800 text-white font-bold shadow-sm' : 'text-slate-600'}`}
-            >
-              Next 90 Days
-            </button>
-          </div>
-
-          <button className="flex items-center gap-1.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 px-3.5 py-2 rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer">
-            <RefreshCcw className="w-3.5 h-3.5 text-teal-700" />
-            <span>Recalculate Projections</span>
-          </button>
-          <button className="flex items-center gap-1.5 bg-teal-800 hover:bg-teal-900 text-white px-3.5 py-2 rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer">
-            <Download className="w-3.5 h-3.5" />
-            <span>Export AI Audit Report</span>
-          </button>
-        </div>
+        <button 
+          onClick={onOpenAddMedicine}
+          className="flex items-center gap-1.5 bg-teal-800 hover:bg-teal-900 text-white px-3.5 py-2 rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          <span>Add Medicine F3</span>
+        </button>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">STOCKOUT RISK AVERTED</span>
-            <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">STOCKOUT ALERTS</span>
+            <div className="w-7 h-7 rounded-lg bg-red-50 text-red-600 flex items-center justify-center">
               <ShieldCheck className="w-4 h-4" />
             </div>
           </div>
           <div>
-            <h4 className="text-xl font-extrabold text-slate-900 font-mono">99.4% <span className="text-xs font-normal text-emerald-600 font-semibold">+2.3% QTD</span></h4>
-            <p className="text-[11px] text-slate-500 mt-1">Predicted 14 potential stockouts in next 14 days</p>
+            <h4 className="text-xl font-extrabold text-red-600 font-mono">{lowStock.length} Active Alerts</h4>
+            <p className="text-[11px] text-slate-500 mt-1">Real-time inventory watch</p>
           </div>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">RECOMMENDED PO CAPITAL</span>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">STORE INVENTORY</span>
             <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center">
               <TrendingUp className="w-4 h-4" />
             </div>
           </div>
           <div>
-            <h4 className="text-xl font-extrabold text-slate-900 font-mono">$14,850.00</h4>
-            <p className="text-[11px] text-teal-700 font-semibold mt-1">Optimal replenishment across 24 critical SKUs</p>
+            <h4 className="text-xl font-extrabold text-slate-900 font-mono">{medicines.length} Products</h4>
+            <p className="text-[11px] text-teal-700 font-semibold mt-1">Managed in Firestore</p>
           </div>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">SEASONAL SURGE FORECAST</span>
-            <div className="w-7 h-7 rounded-lg bg-red-50 text-red-600 flex items-center justify-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">TOTAL SALES REVENUE</span>
+            <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center">
               <Activity className="w-4 h-4" />
             </div>
           </div>
           <div>
-            <h4 className="text-xl font-extrabold text-red-600 font-mono">+38.5% <span className="text-xs font-normal text-slate-600">Resp & Flu</span></h4>
-            <p className="text-[11px] text-slate-500 mt-1">Winter flu vector detected via regional telemetry</p>
+            <h4 className="text-xl font-extrabold text-teal-800 font-mono">Rs.{totalRev.toFixed(2)}</h4>
+            <p className="text-[11px] text-slate-500 mt-1">{invoices.length} transactions audited</p>
           </div>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">FORECAST ACCURACY (MPE)</span>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">AI STATUS</span>
             <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
               <Sparkles className="w-4 h-4" />
             </div>
           </div>
           <div>
-            <h4 className="text-xl font-extrabold text-slate-900 font-mono">96.2% <span className="bg-emerald-100 text-emerald-800 text-[10px] px-1.5 py-0.5 rounded font-bold ml-1">High Sig</span></h4>
-            <p className="text-[11px] text-slate-500 mt-1">Trained on 24mo POS logs, weather & clinic scripts</p>
+            <h4 className="text-xl font-extrabold text-slate-900 font-mono">Active Copilot</h4>
+            <p className="text-[11px] text-slate-500 mt-1">Ready for owner queries</p>
           </div>
         </div>
       </div>
 
-      {/* Main Grid: Left Chart & Right Chat */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2 Cols: Predictive Demand Curves Chart */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-              <div>
-                <h3 className="text-sm font-bold text-slate-900">Predictive Demand Curves & Disease Pattern Forecasting</h3>
-                <p className="text-xs text-slate-500 mt-0.5">Epidemiological time-series extrapolation mapped to real store dispensations</p>
-              </div>
-
-              <div className="flex items-center gap-3 text-xs font-semibold">
-                <span className="px-2.5 py-1 bg-slate-100 rounded text-slate-700">Aggressive (Surge)</span>
-                <span className="px-2.5 py-1 bg-teal-800 text-white rounded">Expected (Baseline)</span>
-                <span className="px-2.5 py-1 bg-slate-100 rounded text-slate-700">Conservative</span>
-              </div>
+      {/* Main Chat Interface */}
+      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col h-[600px] justify-between">
+        <div className="flex items-center justify-between pb-4 border-b border-slate-200">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-teal-800 text-white flex items-center justify-center font-bold text-sm shadow-md">
+              ZP
             </div>
-
-            {/* Recharts Area Chart */}
-            <div className="h-80 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={aiForecastData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorSurge" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#EF4444" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#EF4444" stopOpacity={0.0}/>
-                    </linearGradient>
-                    <linearGradient id="colorProjected" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0F766E" stopOpacity={0.4}/>
-                      <stop offset="95%" stopColor="#0F766E" stopOpacity={0.0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-                  <XAxis dataKey="day" stroke="#94A3B8" fontSize={11} tickLine={false} />
-                  <YAxis stroke="#94A3B8" fontSize={11} tickLine={false} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: '#1E293B', borderRadius: '8px', color: '#fff', fontSize: '12px', border: 'none' }}
-                  />
-                  <Area type="monotone" dataKey="surge" stroke="#EF4444" strokeWidth={2} fillOpacity={1} fill="url(#colorSurge)" name="Surge Vector Boundary" />
-                  <Area type="monotone" dataKey="projected" stroke="#0F766E" strokeWidth={2.5} fillOpacity={1} fill="url(#colorProjected)" name="AI Projected Trajectory" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Sub chart info banner */}
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-ping"></span>
-                <span className="font-bold text-red-900">SMOG / ALLERGY PEAK:</span>
-                <span className="text-red-700 font-medium">+52% Anti-Histamines &nbsp;|&nbsp; VIRAL FLU INFLUX (WIK 3): +45% Amox/Clav</span>
-              </div>
-            </div>
-
-            {/* Bottom 3 metrics */}
-            <div className="grid grid-cols-3 gap-4 mt-6 pt-4 border-t border-slate-100 text-xs">
-              <div>
-                <p className="text-slate-400 font-medium">PEAK SALES DAY</p>
-                <p className="text-sm font-bold text-slate-900 font-mono mt-0.5">Nov 12 ($7,240 est)</p>
-              </div>
-              <div>
-                <p className="text-slate-400 font-medium">STOCK RUNOUT BUFFER</p>
-                <p className="text-sm font-bold text-teal-800 font-mono mt-0.5">4.2 Days Avg</p>
-              </div>
-              <div>
-                <p className="text-slate-400 font-medium">MARGIN IMPACT</p>
-                <p className="text-sm font-bold text-emerald-600 font-mono mt-0.5">+$2,140 Saved</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Autonomous Replenishment Engine & Triggers */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="text-xs font-bold text-slate-900">Autonomous Replenishment Engine</h4>
-                  <p className="text-[10px] text-slate-500">Recommended purchase quantities dynamically calculated from current burn rates</p>
-                </div>
-                <span className="bg-red-100 text-red-700 font-bold text-[10px] px-2 py-0.5 rounded">
-                  18 Actionable Orders
-                </span>
-              </div>
-
-              <div className="space-y-2 text-xs">
-                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between">
-                  <div>
-                    <span className="font-bold text-slate-900">Augmentin 625mg Tab</span>
-                    <p className="text-[10px] text-red-600 font-semibold">14 boxes remaining (Runs out in 3 days)</p>
-                  </div>
-                  <span className="font-mono font-bold text-teal-800">150 boxes ($1,260)</span>
-                </div>
-
-                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between">
-                  <div>
-                    <span className="font-bold text-slate-900">Panadol Extra 500mg</span>
-                    <p className="text-[10px] text-orange-600 font-semibold">22 strips remaining (Runs out in 5 days)</p>
-                  </div>
-                  <span className="font-mono font-bold text-teal-800">250 strips ($275)</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="text-xs font-bold text-slate-900">Telemetry Optimization Directives</h4>
-                  <p className="text-[10px] text-slate-500">Automated clinical substitutes and capital recovery</p>
-                </div>
-                <span className="bg-teal-50 text-teal-800 font-bold text-[10px] px-2 py-0.5 rounded border border-teal-200">
-                  2 ACTIVE TRIGGERS
-                </span>
-              </div>
-
-              <div className="space-y-2 text-xs">
-                <div className="p-2.5 bg-red-50/80 border border-red-200 rounded-lg space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-red-900">⚠️ Near-Expiry Bundle Suggestion</span>
-                    <span className="text-[10px] font-bold text-red-700 bg-red-100 px-1.5 py-0.2 rounded">Exp: 42 Days</span>
-                  </div>
-                  <p className="text-[10px] text-slate-600">14 boxes of Ciprofloxacin 500mg expire in 42 days. AI recommends 15% surgical discount to recover $95.20 margin.</p>
-                  <button className="bg-red-700 text-white px-2.5 py-1 rounded text-[10px] font-semibold hover:bg-red-800 transition-colors">
-                    Deploy Ward Discount
-                  </button>
-                </div>
-              </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">ZenPharma Store Manager Copilot</h3>
+              <p className="text-[11px] text-emerald-600 font-semibold">● Active • Live DB Connected • Low Stock Guardian</p>
             </div>
           </div>
         </div>
 
-        {/* Right 1 Col: ZenPharma Clinical Copilot Chat */}
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between h-fit sticky top-20">
-          <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-teal-800 text-white flex items-center justify-center font-bold text-xs">
-                  ZP
-                </div>
-                <div>
-                  <h3 className="text-xs font-bold text-slate-900">ZenPharma Clinical Copilot</h3>
-                  <p className="text-[10px] text-emerald-600 font-semibold">● Active • Dr. Sarah Khan Context Loaded</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Quick prompt chips */}
-            <div className="py-3 flex flex-wrap gap-1.5 text-[11px]">
-              <button 
-                onClick={() => setChatInput('Explain Flu Surge')}
-                className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-md font-medium transition-colors"
-              >
-                💡 Explain Flu Surge
-              </button>
-              <button 
-                onClick={() => setChatInput('Draft Top 3 POs')}
-                className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-md font-medium transition-colors"
-              >
-                📋 Draft Top 3 POs
-              </button>
-              <button 
-                onClick={() => setChatInput('Audit Expiry Risk')}
-                className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-md font-medium transition-colors"
-              >
-                ⚠️ Audit Expiry Risk
-              </button>
-            </div>
-
-            {/* Chat messages */}
-            <div className="space-y-3 max-h-96 overflow-y-auto pr-1 py-2 scrollbar-thin text-xs">
-              {messages.map((m, idx) => (
-                <div key={idx} className={`p-3 rounded-xl space-y-2 ${
-                  m.sender === 'user' ? 'bg-teal-800 text-white ml-6' : 'bg-slate-50 border border-slate-200 text-slate-800 mr-6'
-                }`}>
-                  <p className="leading-relaxed">{m.text}</p>
-                  {m.action && (
-                    <div className="pt-2 border-t border-slate-200/60 text-[10px] font-bold text-teal-800 bg-teal-50 px-2 py-1 rounded">
-                      ⚡ {m.action}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Chat input form */}
-          <form onSubmit={handleSendChat} className="mt-4 pt-3 border-t border-slate-200 space-y-2">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Ask ZenPharma about stock, pricing, disease surges..."
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-3 pr-20 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-teal-700"
-              />
-              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 text-slate-400">
-                <Mic className="w-4 h-4 hover:text-slate-600 cursor-pointer" />
-                <Paperclip className="w-4 h-4 hover:text-slate-600 cursor-pointer" />
-                <button type="submit" className="w-6 h-6 rounded bg-teal-800 text-white flex items-center justify-center hover:bg-teal-900 cursor-pointer">
-                  <Send className="w-3 h-3" />
-                </button>
-              </div>
-            </div>
-          </form>
+        {/* Quick prompt chips */}
+        <div className="py-3 flex flex-wrap gap-2 text-xs">
+          <button 
+            onClick={() => setChatInput('Check low stock items')}
+            className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer"
+          >
+            ⚠️ Check Low Stock Alerts
+          </button>
+          <button 
+            onClick={() => setChatInput('How do I add medicines?')}
+            className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer"
+          >
+            💊 How to add medicines?
+          </button>
+          <button 
+            onClick={() => setChatInput('Calculate total sales revenue')}
+            className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer"
+          >
+            📊 Calculate Total Sales & Revenue
+          </button>
         </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto space-y-4 pr-2 py-4 scrollbar-thin text-xs">
+          {messages.map((m, idx) => (
+            <div key={idx} className={`p-4 rounded-xl space-y-2 ${
+              m.sender === 'user' ? 'bg-teal-800 text-white ml-12' : 'bg-slate-50 border border-slate-200 text-slate-800 mr-12'
+            }`}>
+              <p className="leading-relaxed text-sm">{m.text}</p>
+              {m.action && (
+                <div className="pt-2 border-t border-slate-200/60 text-[10px] font-bold text-teal-800 bg-teal-50 px-2 py-1 rounded inline-block">
+                  ⚡ {m.action}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Chat input form */}
+        <form onSubmit={handleSendChat} className="pt-4 border-t border-slate-200 flex items-center gap-2">
+          <div className="relative flex-1">
+            <input
+              type="text"
+              placeholder="Ask ZenPharma Copilot (e.g., 'Check low stock', 'What is total revenue?')..."
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-teal-700"
+            />
+          </div>
+          <button type="submit" className="bg-teal-800 hover:bg-teal-900 text-white px-5 py-3 rounded-xl font-bold text-xs flex items-center gap-2 shadow-sm cursor-pointer">
+            <Send className="w-4 h-4" />
+            <span>Send</span>
+          </button>
+        </form>
       </div>
     </div>
   );
