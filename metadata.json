@@ -1,0 +1,6 @@
+{
+  "name": "Talha Surgical & Medicine Shop",
+  "description": "Comprehensive Pharmacy & Surgical Store Management System with POS, Inventory, Invoices, and AI Assistant.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

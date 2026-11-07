@@ -1,0 +1,56 @@
+{
+  "entities": {
+    "Medicine": {
+      "title": "Medicine",
+      "description": "Medicine or surgical item inventory record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "genericName": { "type": "string" },
+        "manufacturer": { "type": "string" },
+        "sku": { "type": "string" },
+        "category": { "type": "string" },
+        "shelfLocation": { "type": "string" },
+        "batchNumber": { "type": "string" },
+        "stock": { "type": "number" },
+        "unit": { "type": "string" },
+        "minStock": { "type": "number" },
+        "unitCost": { "type": "number" },
+        "retailPrice": { "type": "number" },
+        "expiryDate": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["id", "name", "sku", "stock", "retailPrice"]
+    },
+    "Invoice": {
+      "title": "Invoice",
+      "description": "Dispensary transaction invoice record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "invoiceNumber": { "type": "string" },
+        "time": { "type": "string" },
+        "date": { "type": "string" },
+        "customerName": { "type": "string" },
+        "customerType": { "type": "string" },
+        "doctor": { "type": "string" },
+        "totalAmount": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "cashier": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["id", "invoiceNumber", "totalAmount"]
+    }
+  },
+  "firestore": {
+    "/medicines/{medicineId}": {
+      "schema": { "$ref": "#/entities/Medicine" },
+      "description": "Collection of pharmacy medicines and surgical items"
+    },
+    "/invoices/{invoiceId}": {
+      "schema": { "$ref": "#/entities/Invoice" },
+      "description": "Collection of dispensary sales invoices"
+    }
+  }
+}
