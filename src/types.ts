@@ -85,3 +85,27 @@ export interface Customer {
   transactions: KhataTransaction[];
 }
 
+export interface Supplier {
+  id: string;
+  name: string;
+  contactPerson: string;
+  phone: string;
+  company: string;
+  address?: string;
+  deliveryStatus: 'DELIVERED' | 'PENDING' | 'IN_TRANSIT';
+  totalOrders: number;
+  totalPaid: number;
+}
+
+export interface PurchaseOrder {
+  id: string;
+  poNumber: string;
+  date: string;
+  time: string;
+  supplierName: string;
+  medicineName: string;
+  qtyReceived: number;
+  totalCost: number;
+  paymentStatus: 'PAID' | 'CREDIT_PENDING';
+}
+

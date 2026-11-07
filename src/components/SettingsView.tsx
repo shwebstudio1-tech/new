@@ -248,6 +248,49 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
 
         <div className="space-y-6">
+          {/* Store Profile Card */}
+          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+            <h3 className="text-sm font-bold text-slate-900">Store Profile & Branding</h3>
+            
+            {/* Circular Store Logo Preview */}
+            <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
+              <div className="w-12 h-12 rounded-full bg-teal-800 text-white font-black text-base flex items-center justify-center shadow-md ring-2 ring-teal-700/20">
+                TS
+              </div>
+              <div>
+                <p className="font-bold text-xs text-slate-900">Talha Surgical & Medicine</p>
+                <p className="text-[10px] text-teal-800 font-semibold">Circular Logo Enabled</p>
+              </div>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Store Name</label>
+                <input
+                  type="text"
+                  defaultValue="Talha Surgical & Medicine Shop"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-medium text-slate-800 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Contact Phone</label>
+                <input
+                  type="text"
+                  defaultValue="0300-1234567"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-mono font-medium text-slate-800 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">DRAP License #</label>
+                <input
+                  type="text"
+                  defaultValue="DRAP-PK-99"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-mono font-medium text-slate-800 focus:outline-none"
+                />
+              </div>
+            </div>
+          </div>
+
           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
             <h3 className="text-sm font-bold text-slate-900 mb-4">Terminal Metadata</h3>
             <div className="space-y-4">

@@ -23,10 +23,18 @@ interface PosViewProps {
   shift: ShiftInfo;
 }
 
-export const PosView: React.FC<PosViewProps> = ({ medicines, cart, setCart, onCompleteSale, onOpenAddMedicine, shift }) => {
+export const PosView: React.FC<PosViewProps> = ({ medicines, cart, setCart, onCompleteSale, shift }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  const [barcodeInput, setBarcodeInput] = useState<string>('');
   const [cashTendered, setCashTendered] = useState<number>(1000.00);
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CREDIT / A/R' | 'VISA CARD'>('CASH');
+  
+  // Patient & Bill Settings State
+  const [customerName, setCustomerName] = useState<string>('Walk-in Patient');
+  const [customerPhone, setCustomerPhone] = useState<string>('');
+  const [customerCnic, setCustomerCnic] = useState<string>('');
+  const [taxRate, setTaxRate] = useState<number>(2.5); // 2.5% default tax
+  const [discountAmount, setDiscountAmount] = useState<number>(0);
 
   const addToCart = (med: Medicine) => {
     setCart(prev => {
@@ -38,6 +46,24 @@ export const PosView: React.FC<PosViewProps> = ({ medicines, cart, setCart, onCo
       }
       return [...prev, { medicine: med, quantity: 1, dosage: '1 tab twice daily after meal' }];
     });
+  };
+
+  const handleBarcodeSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!barcodeInput.trim()) return;
+    const query = barcodeInput.trim().toLowerCase();
+    const found = medicines.find(m => 
+      m.sku.toLowerCase() === query || 
+      m.batchNumber.toLowerCase() === query || 
+      m.name.toLowerCase().includes(query)
+    );
+
+    if (found) {
+      addToCart(found);
+      setBarcodeInput('');
+    } else {
+      alert(`No product SKU or barcode matched: "${barcodeInput}"`);
+    }
   };
 
   const updateQuantity = (id: string, delta: number) => {
@@ -55,9 +81,8 @@ export const PosView: React.FC<PosViewProps> = ({ medicines, cart, setCart, onCo
   };
 
   const subtotal = cart.reduce((acc, item) => acc + (item.medicine.retailPrice * item.quantity), 0);
-  const discount = 0;
-  const tax = subtotal * 0.025; // 2.5% tax
-  const netTotal = Math.max(0, subtotal - discount + tax);
+  const tax = (subtotal - discountAmount) * (taxRate / 100);
+  const netTotal = Math.max(0, subtotal - discountAmount + tax);
   const changeDue = Math.max(0, cashTendered - netTotal);
 
   const filteredMedicines = selectedCategory === 'ALL' 
@@ -65,13 +90,13 @@ export const PosView: React.FC<PosViewProps> = ({ medicines, cart, setCart, onCo
     : medicines.filter(m => m.category.toUpperCase().includes(selectedCategory));
 
   return (
-    <div className="p-4 sm:p-6 max-w-[1600px] mx-auto select-none space-y-4">
-      {/* Top Live Dispensing Bar */}
+    <div className="p-4 sm:p-6 max-w-[1600px] mx-auto select-none space-y-4 font-sans">
+      {/* Top Bar - Clean Terminal Info */}
       <div className="bg-slate-900 text-white px-4 py-2.5 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs font-medium shadow-xs">
         <div className="flex flex-wrap items-center gap-3">
           <span className="font-bold text-teal-400 flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            LIVE DISPENSING / COUNTER SALES
+            POS DISPENSING TERMINAL
           </span>
           <span className="text-slate-600 hidden sm:inline">|</span>
           <span className="hidden sm:inline">TERM-01</span>
@@ -80,33 +105,34 @@ export const PosView: React.FC<PosViewProps> = ({ medicines, cart, setCart, onCo
           <span className="text-slate-600 hidden sm:inline">|</span>
           <span className="font-mono text-emerald-400">DRAWER CASH: Rs. {shift.drawerCash.toLocaleString('en-PK')}</span>
         </div>
-
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={onOpenAddMedicine}
-            className="bg-teal-700 hover:bg-teal-800 text-white px-3 py-1 rounded-lg font-bold text-[11px] cursor-pointer flex items-center gap-1 shadow-xs transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add Medicine F3</span>
-          </button>
-        </div>
       </div>
 
-      {/* Main Layout: Left Catalog Grid, Right Cart Panel */}
+      {/* Main Layout: Left Product Catalog, Right Bill & Cart Panel */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2 Cols: Medicine Grid */}
+        {/* Left 2 Cols: Barcode Scanner & Category Pills + Medicine Cards */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-3">
+            {/* Barcode Scan Input */}
+            <form onSubmit={handleBarcodeSubmit} className="flex items-center gap-3">
               <Scan className="w-5 h-5 text-teal-700 shrink-0" />
               <input
                 type="text"
-                placeholder="Scan Barcode or Type Medicine Name..."
-                className="w-full sm:w-80 bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs font-medium focus:outline-none focus:border-teal-700"
+                autoFocus
+                placeholder="Scan Barcode / Type SKU or Medicine Name (Press Enter)..."
+                value={barcodeInput}
+                onChange={(e) => setBarcodeInput(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs font-medium focus:bg-white focus:outline-none focus:border-teal-700 transition-all shadow-inner"
               />
-            </div>
+              <button 
+                type="submit"
+                className="bg-teal-800 hover:bg-teal-900 text-white text-xs font-bold px-4 py-2.5 rounded-lg shrink-0 cursor-pointer"
+              >
+                Scan SKU
+              </button>
+            </form>
 
-            <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
+            {/* Category Filter Pills (Responsive Wrap) */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-100">
               {['ALL', 'ANTIBIOTIC', 'ANALGESIC', 'COLD CHAIN', 'SURGICAL'].map(cat => (
                 <button
                   key={cat}
@@ -126,14 +152,8 @@ export const PosView: React.FC<PosViewProps> = ({ medicines, cart, setCart, onCo
           {/* Product Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             {filteredMedicines.length === 0 ? (
-              <div className="col-span-full bg-white p-12 rounded-xl border border-slate-200 text-center text-slate-400 text-xs space-y-2">
-                <p>No active medicines match this category filter.</p>
-                <button 
-                  onClick={onOpenAddMedicine}
-                  className="bg-teal-800 text-white px-3 py-1.5 rounded-lg text-xs font-bold"
-                >
-                  Add Medicine F3
-                </button>
+              <div className="col-span-full bg-white p-12 rounded-xl border border-slate-200 text-center text-slate-400 text-xs">
+                No active medicines match this category filter.
               </div>
             ) : (
               filteredMedicines.map(med => (
@@ -167,20 +187,57 @@ export const PosView: React.FC<PosViewProps> = ({ medicines, cart, setCart, onCo
           </div>
         </div>
 
-        {/* Right 1 Col: Cart & Checkout Panel */}
+        {/* Right 1 Col: Cart, Customer Details & Unified Save & Print Checkout */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between overflow-hidden">
           {/* Cart Header */}
-          <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-            <h3 className="text-sm font-bold text-slate-900">Current Dispensing Cart</h3>
+          <div className="p-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+            <h3 className="text-sm font-bold text-slate-900">Patient Invoice Cart</h3>
             <span className="text-xs font-mono font-bold bg-teal-100 text-teal-800 px-2 py-0.5 rounded">
               {cart.reduce((a, b) => a + b.quantity, 0)} Items
             </span>
           </div>
 
+          {/* Customer Info Box (Name + Contact + CNIC/ID) */}
+          <div className="p-3 bg-slate-50/70 border-b border-slate-200 space-y-2 text-xs">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">PATIENT & BILL SETTINGS</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Patient Name</label>
+                <input
+                  type="text"
+                  placeholder="Patient Name"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded p-1.5 text-xs focus:outline-none focus:border-teal-700"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Phone Number</label>
+                <input
+                  type="text"
+                  placeholder="0300-1234567"
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded p-1.5 text-xs focus:outline-none focus:border-teal-700"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-600 mb-0.5">CNIC / ID Number</label>
+                <input
+                  type="text"
+                  placeholder="35202-xxxxxxx-x"
+                  value={customerCnic}
+                  onChange={(e) => setCustomerCnic(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded p-1.5 text-xs focus:outline-none focus:border-teal-700"
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Cart Items List */}
-          <div className="p-4 flex-1 overflow-y-auto max-h-[350px] divide-y divide-slate-100 space-y-2">
+          <div className="p-3.5 flex-1 overflow-y-auto max-h-[260px] divide-y divide-slate-100 space-y-2">
             {cart.length === 0 ? (
-              <div className="py-16 text-center text-slate-400 text-xs">
+              <div className="py-12 text-center text-slate-400 text-xs">
                 Cart is empty. Click any medicine on the left to start billing.
               </div>
             ) : (
@@ -220,29 +277,52 @@ export const PosView: React.FC<PosViewProps> = ({ medicines, cart, setCart, onCo
             )}
           </div>
 
-          {/* Calculation Summary */}
-          <div className="p-4 border-t border-slate-200 bg-slate-50 space-y-1 text-xs">
+          {/* Calculation Summary with Editable Tax % & Discount */}
+          <div className="p-3.5 border-t border-slate-200 bg-slate-50 space-y-2 text-xs">
             <div className="flex justify-between text-slate-600">
               <span>Gross Subtotal:</span>
               <span className="font-mono font-bold text-slate-900">Rs.{subtotal.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-slate-600">
-              <span>Tax (2.5%):</span>
-              <span className="font-mono font-bold text-slate-900">Rs.{tax.toFixed(2)}</span>
+
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500">Discount (Rs.)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={discountAmount || ''}
+                  onChange={(e) => setDiscountAmount(parseFloat(e.target.value) || 0)}
+                  className="w-full bg-white border border-slate-200 rounded p-1 text-xs font-mono"
+                  placeholder="0.00"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500">Tax Rate (%)</label>
+                <select
+                  value={taxRate}
+                  onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)}
+                  className="w-full bg-white border border-slate-200 rounded p-1 text-xs font-mono"
+                >
+                  <option value={0}>0% (Exempt)</option>
+                  <option value={2.5}>2.5% Standard</option>
+                  <option value={5}>5.0%</option>
+                  <option value={10}>10.0%</option>
+                </select>
+              </div>
             </div>
           </div>
 
           {/* Net Payable Amount */}
-          <div className="p-4 bg-teal-900 text-white flex items-center justify-between">
+          <div className="p-3.5 bg-teal-900 text-white flex items-center justify-between">
             <div>
               <p className="text-[10px] text-teal-300 uppercase font-bold">NET PAYABLE AMOUNT</p>
-              <p className="text-[10px] text-teal-200/80">INCLUDES ALL CALCULATED TAXES</p>
+              <p className="text-[10px] text-teal-200/80">INCLUDES DISCOUNT & TAX</p>
             </div>
             <h3 className="text-2xl font-extrabold font-mono text-white">Rs.{netTotal.toFixed(2)}</h3>
           </div>
 
-          {/* Fast Cash Tender & Change */}
-          <div className="p-4 space-y-3 bg-white border-t border-slate-100">
+          {/* Fast Cash Tender & Change Due */}
+          <div className="p-3.5 space-y-2.5 bg-white border-t border-slate-100">
             <div className="flex items-center justify-between text-xs font-bold text-slate-700">
               <span>CASH TENDERED:</span>
               <span className="text-emerald-600 font-mono">CHANGE DUE: Rs.{changeDue.toFixed(2)}</span>
@@ -265,33 +345,27 @@ export const PosView: React.FC<PosViewProps> = ({ medicines, cart, setCart, onCo
             </div>
           </div>
 
-          {/* TWO CHECKOUT BUTTONS: Save Only vs Save & Print */}
-          <div className="p-4 bg-slate-50 border-t border-slate-200 rounded-b-xl space-y-2">
-            <button
-              onClick={() => onCompleteSale(false)}
-              disabled={cart.length === 0}
-              className={`w-full font-bold py-2.5 rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer text-xs ${
-                cart.length === 0 
-                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
-                  : 'bg-emerald-700 hover:bg-emerald-800 text-white'
-              }`}
-            >
-              <Save className="w-4 h-4" />
-              <span>SAVE TO FIRESTORE ONLY (NO PRINT)</span>
-            </button>
-
+          {/* UNIFIED SAVE & PRINT BUTTON */}
+          <div className="p-3.5 bg-slate-50 border-t border-slate-200 rounded-b-xl space-y-2">
             <button
               onClick={() => onCompleteSale(true)}
               disabled={cart.length === 0}
-              className={`w-full font-bold py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer text-xs ${
+              className={`w-full font-bold py-3.5 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer text-xs ${
                 cart.length === 0 
                   ? 'bg-slate-300 text-slate-500 cursor-not-allowed' 
                   : 'bg-teal-800 hover:bg-teal-900 text-white'
               }`}
             >
               <Printer className="w-4 h-4" />
-              <span>SAVE & PRINT THERMAL RECEIPT</span>
+              <span>SAVE & PRINT INVOICE</span>
               <span className="bg-teal-950 px-1.5 py-0.5 rounded text-[10px] font-mono">F12</span>
+            </button>
+            <button
+              onClick={() => onCompleteSale(false)}
+              disabled={cart.length === 0}
+              className="w-full text-[11px] font-bold text-slate-500 hover:text-slate-800 text-center cursor-pointer py-1"
+            >
+              Save to Firestore Only (No Print)
             </button>
           </div>
         </div>

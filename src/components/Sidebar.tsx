@@ -247,17 +247,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div>
             <p className="px-3 mb-2 text-[10px] font-bold tracking-wider text-slate-400 uppercase">System</p>
             <div className="space-y-1">
-              <button
-                onClick={() => handleTabClick('staff')}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors cursor-pointer ${
-                  currentTab === 'staff'
-                    ? 'bg-teal-800 text-white font-semibold shadow-xs'
-                    : 'text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                <UserCheck className="w-4 h-4" />
-                <span>Staff Management</span>
-              </button>
 
               <button
                 onClick={() => handleTabClick('settings')}

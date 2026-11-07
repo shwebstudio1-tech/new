@@ -48,10 +48,18 @@ export const Header: React.FC<HeaderProps> = ({
     setIsNotificationsCleared(true);
   };
 
+  const searchResults = searchTerm.trim().length > 0
+    ? medicines.filter(m => 
+        m.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        m.genericName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        m.sku.toLowerCase().includes(searchTerm.toLowerCase())
+      ).slice(0, 6)
+    : [];
+
   return (
     <header className="h-16 bg-white border-b border-slate-200 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30 select-none">
       {/* Left: Mobile Menu Toggle & Brand Logo/Search */}
-      <div className="flex items-center gap-3 flex-1 max-w-md">
+      <div className="flex items-center gap-3 flex-1 max-w-md relative">
         <button
           onClick={onToggleMobileSidebar}
           className="lg:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100 cursor-pointer"
@@ -60,19 +68,55 @@ export const Header: React.FC<HeaderProps> = ({
           <Menu className="w-5 h-5" />
         </button>
 
-        {/* Desktop Search Bar */}
+        {/* Desktop Search Bar with Live Results Dropdown */}
         <div className="hidden sm:block relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Scan Barcode or Search Medicine, SKU, Patient..."
+            placeholder="Scan Barcode or Search Medicine, SKU, Generic..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-14 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-teal-700 focus:bg-white transition-all shadow-inner"
+            className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-8 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-teal-700 focus:bg-white transition-all shadow-inner"
           />
-          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-mono bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-bold hidden md:inline-block">
-            Ctrl+K
-          </span>
+          {searchTerm && (
+            <button 
+              onClick={() => setSearchTerm('')} 
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+
+          {/* Search Dropdown Panel */}
+          {searchResults.length > 0 && (
+            <div className="absolute left-0 right-0 mt-1 bg-white rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden animate-in fade-in duration-150">
+              <div className="p-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[11px] font-bold text-slate-500">
+                <span>Matching Medicines ({searchResults.length})</span>
+                <span className="text-[10px] text-teal-700">Click item to view in catalog</span>
+              </div>
+              <div className="divide-y divide-slate-100 max-h-60 overflow-y-auto">
+                {searchResults.map(med => (
+                  <div
+                    key={med.id}
+                    onClick={() => {
+                      setSearchTerm('');
+                      setCurrentTab('inventory');
+                    }}
+                    className="p-2.5 hover:bg-teal-50 transition-colors cursor-pointer flex items-center justify-between gap-2"
+                  >
+                    <div>
+                      <p className="font-bold text-xs text-slate-900">{med.name}</p>
+                      <p className="text-[10px] text-slate-500">{med.genericName} • SKU: {med.sku}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-mono font-bold text-teal-800 text-xs">Rs. {med.retailPrice.toFixed(2)}</p>
+                      <p className="text-[10px] text-slate-400">Stock: {med.stock} {med.unit}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Mobile Search Toggle Button */}

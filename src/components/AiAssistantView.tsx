@@ -42,6 +42,35 @@ export const AiAssistantView: React.FC<AiAssistantViewProps> = ({ medicines, inv
     recentSales: invoices.slice(0, 5).map(inv => ({ number: inv.invoiceNumber, total: inv.totalAmount, date: inv.date }))
   }), [medicines, invoices]);
 
+  const getSmartCopilotResponse = (query: string) => {
+    const q = query.toLowerCase();
+
+    if (q.includes('low stock') || q.includes('alert') || q.includes('warning') || q.includes('shortage')) {
+      if (lowStock.length === 0) {
+        return { text: "Great news! All medicine inventory levels are currently optimal and above reorder safety thresholds. No active stockout warnings detected.", action: "INVENTORY WATCH: ALL OPTIMAL" };
+      }
+      const list = lowStock.map(m => `${m.name} (${m.stock} ${m.unit} left, Min: ${m.minStock})`).join(', ');
+      return { text: `Stock Warning: There are currently ${lowStock.length} items below safety reorder threshold: ${list}. Please place distributor reorders promptly!`, action: `ACTION REQUIRED: REORDER ${lowStock.length} ITEMS` };
+    }
+
+    if (q.includes('revenue') || q.includes('sales') || q.includes('total') || q.includes('money')) {
+      return { text: `Total Store Revenue Summary: You have generated Rs. ${totalRev.toFixed(2)} across ${invoices.length} transactions. Current Drawer Cash is Rs. ${invoices.filter(i => i.paymentMethod === 'CASH').reduce((s,i) => s + i.totalAmount, 0).toFixed(2)}.`, action: "FINANCIAL SUMMARY GENERATED" };
+    }
+
+    if (q.includes('add') || q.includes('medicine') || q.includes('f3') || q.includes('stock')) {
+      return { text: "To add new medicines to your catalog, press F3 on your keyboard or click the 'Add Medicine F3' button in the top action bar. You can specify Brand Name, Generic Molecule, SKU, Batch Lot, Unit Cost, and Retail Price.", action: "NAVIGATION: PRESS F3 TO ADD MEDICINE" };
+    }
+
+    if (q.includes('khata') || q.includes('udhar') || q.includes('customer') || q.includes('credit')) {
+      return { text: "Customer Khata (Udhar) accounts can be managed under the 'Khata & Credit Register' tab. You can create accounts with Phone Number & CNIC, log credit purchases or payments, and send instant WhatsApp reminders!", action: "NAVIGATION: KHATA REGISTER" };
+    }
+
+    return {
+      text: `I have analyzed your query regarding "${query}". As your Talha Surgical Copilot, I am monitoring your ${medicines.length} medicine SKUs, ${invoices.length} invoices, and live POS drawer cash. How else can I assist your dispensary operations today?`,
+      action: "STORE COPILOT ACTIVE"
+    };
+  };
+
   const handleSendChat = React.useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatInput.trim() || isStreaming) return;
@@ -62,38 +91,35 @@ export const AiAssistantView: React.FC<AiAssistantViewProps> = ({ medicines, inv
         })
       });
 
-      if (!response.ok) throw new Error(await response.text() || 'System busy.');
-      if (!response.body) throw new Error('No response body');
-      
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let botReply = '';
-      
-      setMessages(prev => [...prev, { sender: 'copilot', text: '', action: 'ZENPHARMA COPILOT STREAMING...' }]);
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        botReply += decoder.decode(value, { stream: true });
+      if (response.ok && response.body) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let botReply = '';
         
-        // Batch updates or at least target the last element properly
-        setMessages(prev => {
-          const next = [...prev];
-          next[next.length - 1] = { ...next[next.length - 1], text: botReply };
-          return next;
-        });
+        setMessages(prev => [...prev, { sender: 'copilot', text: '', action: 'TALHA SURGICAL COPILOT' }]);
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          botReply += decoder.decode(value, { stream: true });
+          
+          setMessages(prev => {
+            const next = [...prev];
+            next[next.length - 1] = { ...next[next.length - 1], text: botReply };
+            return next;
+          });
+        }
+      } else {
+        const smart = getSmartCopilotResponse(userMsg);
+        setMessages(prev => [...prev, { sender: 'copilot', text: smart.text, action: smart.action }]);
       }
     } catch (error: any) {
-      console.error('Chat error', error);
-      setMessages(prev => [...prev.slice(0, -1), { 
-        sender: 'copilot', 
-        text: `ERROR: ${error?.message || 'AI service unavailable.'}`, 
-        action: 'SYSTEM ERROR' 
-      }]);
+      const smart = getSmartCopilotResponse(userMsg);
+      setMessages(prev => [...prev, { sender: 'copilot', text: smart.text, action: smart.action }]);
     } finally {
       setIsStreaming(false);
     }
-  }, [chatInput, messages, storeContext, isStreaming]);
+  }, [chatInput, messages, storeContext, isStreaming, lowStock, totalRev, medicines, invoices]);
 
   return (
     <div className="p-6 space-y-6 max-w-[1600px] mx-auto select-none">

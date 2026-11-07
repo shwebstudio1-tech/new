@@ -88,10 +88,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ medicines, onOpenA
             <span>Add New Medicine F3</span>
           </button>
           <button className="flex items-center gap-1.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 px-3.5 py-2 rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer">
-            <Boxes className="w-3.5 h-3.5 text-teal-700" />
-            <span>Stock In / Receive Purchase</span>
-          </button>
-          <button className="flex items-center gap-1.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 px-3.5 py-2 rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer">
             <Download className="w-3.5 h-3.5 text-slate-600" />
             <span>Export</span>
           </button>

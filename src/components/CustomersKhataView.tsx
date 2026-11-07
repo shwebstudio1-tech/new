@@ -358,6 +358,16 @@ export const CustomersKhataView: React.FC<CustomersKhataViewProps> = ({
                       <DollarSign className="w-3.5 h-3.5" />
                       <span>+ Receive Payment</span>
                     </button>
+                    {selectedCustomer.totalDebt > 0 && (
+                      <a
+                        href={`https://wa.me/${selectedCustomer.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Assalam-o-Alaikum ${selectedCustomer.name}, Talha Surgical & Medicine Shop say aap ka total pending Udhar balance Rs. ${selectedCustomer.totalDebt.toFixed(2)} hai. Baraye karam jald az jald ada farmae. Shukriya!`)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center justify-center gap-1.5 bg-emerald-800 hover:bg-emerald-900 text-white px-3.5 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer shadow-xs text-center"
+                      >
+                        <span>WhatsApp Reminder</span>
+                      </a>
+                    )}
                   </div>
                 </div>
               </div>

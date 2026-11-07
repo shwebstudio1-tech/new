@@ -19,6 +19,9 @@ import { PrintableInvoice } from './components/PrintableInvoice';
 import { LoginView } from './components/LoginView';
 import { CustomersKhataView } from './components/CustomersKhataView';
 import { EditMedicineModal } from './components/EditMedicineModal';
+import { PurchasesView } from './components/PurchasesView';
+import { SuppliersView } from './components/SuppliersView';
+import { ReportsView } from './components/ReportsView';
 
 export interface UserProfile {
   name: string;
@@ -474,38 +477,21 @@ export default function App() {
             )}
 
             {currentTab === 'purchases' && (
-              <PlaceholderView 
-                title="Purchase Orders & Supplier Invoices" 
-                description="Manage distributor purchase orders, batch verification, goods received notes (GRN), and cost audits."
-                tabType={currentTab}
-                setCurrentTab={setCurrentTab}
+              <PurchasesView 
+                medicines={medicines}
+                onOpenAddMedicine={() => setIsAddMedicineOpen(true)}
               />
             )}
 
             {currentTab === 'suppliers' && (
-              <PlaceholderView 
-                title="Suppliers & Distributor Directory" 
-                description="Directory of pharmaceutical manufacturers, wholesale medical distributors, lead times, and contract terms."
-                tabType={currentTab}
-                setCurrentTab={setCurrentTab}
-              />
+              <SuppliersView />
             )}
 
             {currentTab === 'reports' && (
-              <PlaceholderView 
-                title="Reports & Financial Analytics" 
-                description="Detailed DRAP compliance reports, narcotic audit logs, gross profit margin breakdown, and tax summaries."
-                tabType={currentTab}
-                setCurrentTab={setCurrentTab}
-              />
-            )}
-
-            {currentTab === 'staff' && (
-              <PlaceholderView 
-                title="Staff & Shift Management" 
-                description="Manage pharmacist licenses, terminal access control, drawer cash reconciliation, and shift logs."
-                tabType={currentTab}
-                setCurrentTab={setCurrentTab}
+              <ReportsView 
+                invoices={invoices}
+                customers={customers}
+                medicines={medicines}
               />
             )}
 
