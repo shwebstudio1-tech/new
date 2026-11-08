@@ -452,7 +452,7 @@ export const PosView: React.FC<PosViewProps> = ({
               <span className="text-emerald-600 font-mono">CHANGE DUE: Rs.{changeDue.toFixed(2)}</span>
             </div>
 
-            <div className="grid grid-cols-4 gap-2 text-xs font-mono font-bold">
+            <div className="grid grid-cols-5 gap-1.5 text-xs font-mono font-bold">
               {[50, 100, 500, 1000, 5000].map((amt) => (
                 <button
                   key={amt}

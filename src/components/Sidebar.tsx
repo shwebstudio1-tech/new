@@ -38,6 +38,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpenMobile = false,
   onCloseMobile
 }) => {
+  const [storeName, setStoreName] = React.useState(() => localStorage.getItem('talha_store_name') || 'TALHA SURGICAL');
+  const [storeLogo, setStoreLogo] = React.useState(() => localStorage.getItem('talha_store_logo') || '');
+
+  React.useEffect(() => {
+    const handleStorage = () => {
+      setStoreName(localStorage.getItem('talha_store_name') || 'TALHA SURGICAL');
+      setStoreLogo(localStorage.getItem('talha_store_logo') || '');
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
   const handleTabClick = (tab: TabType) => {
     setCurrentTab(tab);
     if (onCloseMobile) onCloseMobile();
@@ -66,9 +78,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
             title="Edit Store Profile & Branding"
           >
             <div className="relative shrink-0">
-              <div className="w-10 h-10 rounded-full bg-teal-800 flex items-center justify-center text-white font-black text-sm shadow-md shadow-teal-900/20 ring-2 ring-teal-700/30 overflow-hidden transition-all group-hover:scale-105">
-                TS
-              </div>
+              {storeLogo ? (
+                <img src={storeLogo} alt="Logo" className="w-10 h-10 rounded-full object-cover shadow-md shadow-teal-900/20 ring-2 ring-teal-700/30 transition-all group-hover:scale-105" />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-teal-800 flex items-center justify-center text-white font-black text-sm shadow-md shadow-teal-900/20 ring-2 ring-teal-700/30 overflow-hidden transition-all group-hover:scale-105">
+                  {storeName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+                </div>
+              )}
               <div className="absolute inset-0 bg-slate-900/70 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
                 <span className="text-[9px] font-bold uppercase tracking-wider">Edit</span>
               </div>
@@ -78,7 +94,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
                 <h1 className="font-bold text-slate-900 text-sm leading-tight tracking-tight group-hover:text-teal-800 transition-colors truncate">
-                  TALHA SURGICAL
+                  {storeName}
                 </h1>
               </div>
               <p className="text-[10px] text-teal-800 font-bold tracking-wider uppercase flex items-center gap-1 mt-0.5">

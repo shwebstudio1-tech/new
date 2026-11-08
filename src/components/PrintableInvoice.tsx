@@ -13,6 +13,11 @@ interface PrintableInvoiceProps {
 export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({ invoice, onClose, storeAddress }) => {
   if (!invoice) return null;
 
+  const storeName = localStorage.getItem('talha_store_name') || 'TALHA SURGICAL & MEDICINE SHOP';
+  const storePhone = localStorage.getItem('talha_store_phone') || '0300-1234567';
+  const storeLicense = localStorage.getItem('talha_store_license') || 'DRAP-PK-99';
+  const storeLogo = localStorage.getItem('talha_store_logo');
+
   const handlePrint = () => {
     window.print();
   };
@@ -90,13 +95,15 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({ invoice, onC
       <div id="printable-invoice-content" style={{ backgroundColor: '#ffffff', color: '#000000', width: '100%', maxWidth: '340px', padding: '24px', border: '1px solid #d1d5db', fontFamily: 'monospace', fontSize: '12px', userSelect: 'none' }}>
         {/* Pharmacy Header */}
         <div style={{ textAlign: 'center', borderBottom: '2px dashed #9ca3af', paddingBottom: '12px', marginBottom: '16px' }}>
+          {storeLogo && (
+            <img src={storeLogo} alt="Logo" style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', margin: '0 auto 6px auto', display: 'block' }} />
+          )}
           <div style={{ display: 'inline-block', backgroundColor: '#064e3b', color: '#ffffff', fontFamily: 'sans-serif', fontSize: '10px', textTransform: 'uppercase', fontWeight: 'bold', padding: '2px 8px', borderRadius: '4px', marginBottom: '4px' }}>
             Official Cash Receipt
           </div>
-          <h1 style={{ fontSize: '18px', fontWeight: 900, textTransform: 'uppercase', margin: 0, color: '#000000' }}>TALHA SURGICAL</h1>
-          <p style={{ fontSize: '11px', fontWeight: 'bold', fontFamily: 'sans-serif', margin: 0, color: '#374151' }}>& MEDICINE SHOP</p>
-          <p style={{ fontSize: '10px', margin: 0, color: '#4b5563' }}>{storeAddress}</p>
-          <p style={{ fontSize: '9px', margin: 0, color: '#6b7280' }}>Tel: 0300-1234567 • License: DRAP-PK-99</p>
+          <h1 style={{ fontSize: '16px', fontWeight: 900, textTransform: 'uppercase', margin: 0, color: '#000000' }}>{storeName}</h1>
+          <p style={{ fontSize: '10px', margin: 0, color: '#4b5563', marginTop: '2px' }}>{storeAddress}</p>
+          <p style={{ fontSize: '9px', margin: 0, color: '#6b7280', marginTop: '2px' }}>Tel: {storePhone} • License: {storeLicense}</p>
         </div>
 
         {/* Invoice Meta */}

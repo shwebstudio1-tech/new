@@ -514,8 +514,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     localStorage.setItem('talha_store_phone', storePhone);
                     localStorage.setItem('talha_store_license', storeLicense);
                     localStorage.setItem('talha_store_logo', storeLogoUrl);
+
+                    document.title = `${storeName} - Pharmacy Management System`;
+                    if (storeLogoUrl) {
+                      let link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
+                      if (!link) {
+                        link = document.createElement('link');
+                        link.rel = 'icon';
+                        document.head.appendChild(link);
+                      }
+                      link.href = storeLogoUrl;
+                    }
+
                     await onUpdateStoreAddress(address);
                     setIsUpdatingProfile(false);
+                    window.dispatchEvent(new Event('storage'));
                     setStatusMessage({ type: 'success', text: 'Store profile, branding, and address successfully updated!' });
                   }}
                   className="bg-teal-800 hover:bg-teal-900 text-white px-4 py-2 rounded-lg font-bold text-xs cursor-pointer shadow-sm disabled:opacity-60"

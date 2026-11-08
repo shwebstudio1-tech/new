@@ -33,7 +33,12 @@ export interface UserProfile {
 export default function App() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(() => {
     const saved = localStorage.getItem('talha_user_session');
-    const profile = saved ? JSON.parse(saved) : null;
+    const profile = saved ? JSON.parse(saved) : {
+      name: localStorage.getItem('talha_operator_name') || 'Admin / Owner',
+      email: 'owner@talhasurgical.pk',
+      role: localStorage.getItem('talha_operator_role') || 'System Administrator',
+      photoURL: localStorage.getItem('talha_operator_avatar') || ''
+    };
     if (profile) {
       profile.name = localStorage.getItem('talha_operator_name') || profile.name;
       profile.role = localStorage.getItem('talha_operator_role') || profile.role;
@@ -43,13 +48,45 @@ export default function App() {
   });
 
   useEffect(() => {
+    const storeName = localStorage.getItem('talha_store_name') || 'Talha Surgical & Medicine Shop';
+    const storeLogo = localStorage.getItem('talha_store_logo');
+    document.title = `${storeName} - Pharmacy Management System`;
+    if (storeLogo) {
+      let link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.head.appendChild(link);
+      }
+      link.href = storeLogo;
+    }
+  }, []);
+
+  useEffect(() => {
     const handleStorage = () => {
+      const storeName = localStorage.getItem('talha_store_name') || 'Talha Surgical & Medicine Shop';
+      const storeLogo = localStorage.getItem('talha_store_logo');
+      document.title = `${storeName} - Pharmacy Management System`;
+      if (storeLogo) {
+        let link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
+        if (!link) {
+          link = document.createElement('link');
+          link.rel = 'icon';
+          document.head.appendChild(link);
+        }
+        link.href = storeLogo;
+      }
       setUserProfile(prev => prev ? {
         ...prev,
         name: localStorage.getItem('talha_operator_name') || prev.name,
         role: localStorage.getItem('talha_operator_role') || prev.role,
         photoURL: localStorage.getItem('talha_operator_avatar') || prev.photoURL
-      } : null);
+      } : {
+        name: localStorage.getItem('talha_operator_name') || 'Admin / Owner',
+        email: 'owner@talhasurgical.pk',
+        role: localStorage.getItem('talha_operator_role') || 'System Administrator',
+        photoURL: localStorage.getItem('talha_operator_avatar') || ''
+      });
     };
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
