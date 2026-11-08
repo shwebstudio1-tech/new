@@ -15,16 +15,23 @@ import {
   Trash2,
   Edit
 } from 'lucide-react';
-import { Medicine } from '../types';
+import { Medicine, TabType } from '../types';
 
 interface InventoryViewProps {
   medicines: Medicine[];
   onOpenAddMedicine: () => void;
   onDeleteMedicine: (id: string) => void;
   onOpenEditMedicine?: (med: Medicine) => void;
+  setCurrentTab: (tab: TabType) => void;
 }
 
-export const InventoryView: React.FC<InventoryViewProps> = ({ medicines, onOpenAddMedicine, onDeleteMedicine, onOpenEditMedicine }) => {
+export const InventoryView: React.FC<InventoryViewProps> = ({ 
+  medicines, 
+  onOpenAddMedicine, 
+  onDeleteMedicine, 
+  onOpenEditMedicine,
+  setCurrentTab 
+}) => {
   const [selectedMed, setSelectedMed] = useState<Medicine | null>(medicines[0] || null);
   const [filterPreset, setFilterPreset] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -47,6 +54,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ medicines, onOpenA
     const matchesSearch = m.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           m.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           m.batchNumber.toLowerCase().includes(searchTerm.toLowerCase());
+    if (filterPreset === 'low_stock') return matchesSearch && m.stock <= m.minStock;
     if (filterPreset === 'expiring') return matchesSearch && m.status === 'expiring';
     if (filterPreset === 'cold') return matchesSearch && m.category.includes('Cold Chain');
     if (filterPreset === 'controlled') return matchesSearch && m.category.includes('Rx');
@@ -73,13 +81,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ medicines, onOpenA
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button 
-            onClick={() => window.location.reload()}
-            className="p-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-500 hover:text-teal-700 hover:bg-teal-50 transition-all cursor-pointer"
-            title="Force Reload"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
           <button
             onClick={onOpenAddMedicine}
             className="flex items-center gap-1.5 bg-teal-800 hover:bg-teal-900 text-white px-3.5 py-2 rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer"
@@ -96,57 +97,105 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ medicines, onOpenA
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        {/* Total Catalog Items */}
+        <div 
+          onClick={() => setFilterPreset('all')}
+          className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 group ${
+            filterPreset === 'all'
+              ? 'bg-teal-50/80 border-teal-600 ring-2 ring-teal-700 shadow-sm'
+              : 'bg-white border-slate-200 hover:border-teal-500 shadow-xs'
+          }`}
+          title="Click to view all medicines in catalog"
+        >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">TOTAL CATALOG ITEMS</span>
-            <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-teal-800 transition-colors">TOTAL CATALOG ITEMS</span>
+            <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center group-hover:bg-teal-100 transition-colors">
               <Boxes className="w-4 h-4" />
             </div>
           </div>
           <div>
             <h4 className="text-xl font-extrabold text-slate-900 font-mono">{medicines.length} <span className="text-xs font-normal text-slate-500">SKUs ACTIVE</span></h4>
-            <p className="text-[11px] text-slate-500 mt-1">Ready for owner inventory entry</p>
+            <div className="flex items-center justify-between text-[11px] text-slate-500 mt-1">
+              <span>Ready for billing</span>
+              <span className="text-teal-700 font-bold group-hover:underline text-[10px]">
+                {filterPreset === 'all' ? 'All Active ✓' : 'Show All →'}
+              </span>
+            </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        {/* Total Valuation */}
+        <div 
+          onClick={() => setFilterPreset('all')}
+          className="bg-white p-4 rounded-xl border border-slate-200 hover:border-teal-500 shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer flex flex-col justify-between group"
+          title="Live inventory valuation across all stock"
+        >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">TOTAL VALUATION (COST/RETAIL)</span>
-            <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-teal-800 transition-colors">TOTAL VALUATION (COST/RETAIL)</span>
+            <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center group-hover:bg-teal-100 transition-colors">
               <Download className="w-4 h-4" />
             </div>
           </div>
           <div>
             <h4 className="text-lg font-extrabold text-slate-900 font-mono">Rs.{totalValuationCost.toLocaleString('en-PK')} / <span className="text-teal-700">Rs.{totalValuationRetail.toLocaleString('en-PK')}</span></h4>
-            <div className="flex items-center gap-2 text-[11px] text-emerald-600 font-semibold mt-1">
+            <div className="flex items-center justify-between text-[11px] text-emerald-600 font-semibold mt-1">
               <span>Live Inventory Valuation</span>
+              <span className="text-teal-700 font-bold group-hover:underline text-[10px]">Inventory →</span>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        {/* Low Stock Alerts */}
+        <div 
+          onClick={() => setFilterPreset(prev => prev === 'low_stock' ? 'all' : 'low_stock')}
+          className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 group ${
+            filterPreset === 'low_stock'
+              ? 'bg-red-50/80 border-red-500 ring-2 ring-red-600 shadow-sm'
+              : 'bg-white border-slate-200 hover:border-red-400 shadow-xs'
+          }`}
+          title="Click to filter low stock items below reorder threshold"
+        >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">LOW STOCK ALERTS</span>
-            <div className="w-7 h-7 rounded-lg bg-red-50 text-red-600 flex items-center justify-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-red-700 transition-colors">LOW STOCK ALERTS</span>
+            <div className="w-7 h-7 rounded-lg bg-red-50 text-red-600 flex items-center justify-center group-hover:bg-red-100 transition-colors">
               <ShieldAlert className="w-4 h-4" />
             </div>
           </div>
           <div>
             <h4 className="text-xl font-extrabold text-red-600 font-mono">{lowStockCount} <span className="text-xs font-normal text-slate-500">SKUs CRITICAL</span></h4>
-            <p className="text-[11px] text-red-600 font-semibold mt-1">Below Reorder Threshold</p>
+            <div className="flex items-center justify-between text-[11px] text-red-600 font-semibold mt-1">
+              <span>Below Safety Stock</span>
+              <span className="text-red-700 font-bold group-hover:underline text-[10px]">
+                {filterPreset === 'low_stock' ? 'Filter Active ✓' : 'Filter Low Stock →'}
+              </span>
+            </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        {/* Expiring Soon */}
+        <div 
+          onClick={() => setFilterPreset(prev => prev === 'expiring' ? 'all' : 'expiring')}
+          className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 group ${
+            filterPreset === 'expiring'
+              ? 'bg-orange-50/80 border-orange-500 ring-2 ring-orange-600 shadow-sm'
+              : 'bg-white border-slate-200 hover:border-orange-400 shadow-xs'
+          }`}
+          title="Click to filter medicines expiring soon"
+        >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">EXPIRING SOON (&lt;60 DAYS)</span>
-            <div className="w-7 h-7 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-orange-700 transition-colors">EXPIRING SOON (&lt;60 DAYS)</span>
+            <div className="w-7 h-7 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center group-hover:bg-orange-100 transition-colors">
               <Clock className="w-4 h-4" />
             </div>
           </div>
           <div>
             <h4 className="text-xl font-extrabold text-orange-600 font-mono">0 <span className="text-xs font-normal text-slate-500">BATCH LOTS</span></h4>
-            <p className="text-[11px] text-orange-600 font-semibold mt-1">Fresh inventory monitored</p>
+            <div className="flex items-center justify-between text-[11px] text-orange-600 font-semibold mt-1">
+              <span>Fresh inventory</span>
+              <span className="text-orange-700 font-bold group-hover:underline text-[10px]">
+                {filterPreset === 'expiring' ? 'Filter Active ✓' : 'Filter Expiring →'}
+              </span>
+            </div>
           </div>
         </div>
       </div>

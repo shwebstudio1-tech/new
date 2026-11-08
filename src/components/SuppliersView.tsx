@@ -1,44 +1,14 @@
 import React, { useState } from 'react';
 import { Truck, Plus, Search, Phone, Building2, CheckCircle2, Clock, AlertTriangle, X } from 'lucide-react';
-import { Supplier } from '../types';
+import { Supplier, TabType } from '../types';
 
-export const SuppliersView: React.FC = () => {
-  const [suppliers, setSuppliers] = useState<Supplier[]>([
-    {
-      id: 'sup-1',
-      name: 'GlaxoSmithKline (GSK) Pakistan',
-      contactPerson: 'Tariq Mehmood',
-      phone: '0300-8889911',
-      company: 'GSK Pharma',
-      address: 'Industrial Area, Karachi',
-      deliveryStatus: 'DELIVERED',
-      totalOrders: 14,
-      totalPaid: 450000
-    },
-    {
-      id: 'sup-2',
-      name: 'Getz Pharma Distributors',
-      contactPerson: 'Kamran Ali',
-      phone: '0321-4445566',
-      company: 'Getz Pharma',
-      address: 'Multan Road, Lahore',
-      deliveryStatus: 'PENDING',
-      totalOrders: 8,
-      totalPaid: 280000
-    },
-    {
-      id: 'sup-3',
-      name: 'Sami Pharmaceutical (Pvt) Ltd',
-      contactPerson: 'Shahid Hussain',
-      phone: '0333-7771122',
-      company: 'Sami Pharma',
-      address: 'Industrial Estate, Rawalpindi',
-      deliveryStatus: 'DELIVERED',
-      totalOrders: 5,
-      totalPaid: 190000
-    }
-  ]);
+interface SuppliersViewProps {
+  suppliers: Supplier[];
+  onAddSupplier: (supplier: Omit<Supplier, 'id' | 'totalOrders' | 'totalPaid'>) => Promise<void>;
+  setCurrentTab: (tab: TabType) => void;
+}
 
+export const SuppliersView: React.FC<SuppliersViewProps> = ({ suppliers, onAddSupplier, setCurrentTab }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -50,30 +20,25 @@ export const SuppliersView: React.FC = () => {
   const [address, setAddress] = useState('');
   const [deliveryStatus, setDeliveryStatus] = useState<'DELIVERED' | 'PENDING' | 'IN_TRANSIT'>('DELIVERED');
 
-  const handleAddSupplierSubmit = (e: React.FormEvent) => {
+  const handleAddSupplierSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !phone) return;
 
-    const newSup: Supplier = {
-      id: `sup-${Date.now()}`,
+    await onAddSupplier({
       name,
       contactPerson,
       phone,
       company: company || name,
       address,
-      deliveryStatus,
-      totalOrders: 1,
-      totalPaid: 0
-    };
+      deliveryStatus
+    });
 
-    setSuppliers(prev => [newSup, ...prev]);
     setIsModalOpen(false);
     setName('');
     setContactPerson('');
     setPhone('');
     setCompany('');
     setAddress('');
-    alert(`Supplier "${newSup.name}" added successfully to directory!`);
   };
 
   const filteredSuppliers = suppliers.filter(s => 
@@ -109,23 +74,34 @@ export const SuppliersView: React.FC = () => {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div 
+          onClick={() => setCurrentTab('purchases')}
+          className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-teal-500 transition-all cursor-pointer flex flex-col justify-between group"
+          title="Click to view all supplier purchases"
+        >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">ACTIVE SUPPLIERS</span>
-            <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-teal-800">ACTIVE SUPPLIERS</span>
+            <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center group-hover:bg-teal-100">
               <Truck className="w-4 h-4" />
             </div>
           </div>
           <div>
             <h4 className="text-xl font-extrabold text-slate-900 font-mono">{suppliers.length} Vendors</h4>
-            <p className="text-[11px] text-slate-500 mt-1">Verified distributors</p>
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-[11px] text-slate-500">Verified distributors</p>
+              <span className="text-[10px] font-bold text-teal-700 group-hover:underline">Purchases →</span>
+            </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div 
+          onClick={() => setCurrentTab('purchases')}
+          className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-orange-500 transition-all cursor-pointer flex flex-col justify-between group"
+          title="Click to review pending shipments in purchases"
+        >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">PENDING SHIPMENTS</span>
-            <div className="w-7 h-7 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-orange-700">PENDING SHIPMENTS</span>
+            <div className="w-7 h-7 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center group-hover:bg-orange-100">
               <Clock className="w-4 h-4" />
             </div>
           </div>
@@ -133,14 +109,21 @@ export const SuppliersView: React.FC = () => {
             <h4 className="text-xl font-extrabold text-orange-600 font-mono">
               {suppliers.filter(s => s.deliveryStatus === 'PENDING').length} Pending
             </h4>
-            <p className="text-[11px] text-slate-500 mt-1">Awaiting delivery</p>
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-[11px] text-slate-500">Awaiting delivery</p>
+              <span className="text-[10px] font-bold text-orange-700 group-hover:underline">Orders →</span>
+            </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div 
+          onClick={() => setCurrentTab('inventory')}
+          className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-emerald-500 transition-all cursor-pointer flex flex-col justify-between group"
+          title="Click to view received stock in inventory"
+        >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">DELIVERED ORDERS</span>
-            <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-emerald-800">DELIVERED ORDERS</span>
+            <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center group-hover:bg-emerald-100">
               <CheckCircle2 className="w-4 h-4" />
             </div>
           </div>
@@ -148,7 +131,10 @@ export const SuppliersView: React.FC = () => {
             <h4 className="text-xl font-extrabold text-emerald-700 font-mono">
               {suppliers.filter(s => s.deliveryStatus === 'DELIVERED').length} Completed
             </h4>
-            <p className="text-[11px] text-slate-500 mt-1">Stock received in shop</p>
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-[11px] text-slate-500">Stock received in shop</p>
+              <span className="text-[10px] font-bold text-emerald-700 group-hover:underline">Inventory →</span>
+            </div>
           </div>
         </div>
       </div>

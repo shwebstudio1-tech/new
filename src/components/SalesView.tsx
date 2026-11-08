@@ -11,20 +11,28 @@ import {
   CheckCircle2,
   Barcode,
   RotateCcw,
-  RefreshCw
+  RefreshCw,
+  X
 } from 'lucide-react';
-import { Invoice } from '../types';
+import { Invoice, TabType } from '../types';
 
 interface SalesViewProps {
   invoices: Invoice[];
   onOpenQuickSale: () => void;
   onPrintInvoice: (inv: Invoice) => void;
+  setCurrentTab: (tab: TabType) => void;
 }
 
-export const SalesView: React.FC<SalesViewProps> = ({ invoices, onOpenQuickSale, onPrintInvoice }) => {
+export const SalesView: React.FC<SalesViewProps> = ({ 
+  invoices, 
+  onOpenQuickSale, 
+  onPrintInvoice,
+  setCurrentTab 
+}) => {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(invoices[0] || null);
   const [activeTab, setActiveTab] = useState<'ledger' | 'audit'>('ledger');
   const [selectedAuditDate, setSelectedAuditDate] = useState<string>('today');
+  const [salesFilter, setSalesFilter] = useState<'ALL' | 'TODAY' | 'CASH_TODAY' | 'CREDIT_TODAY'>('ALL');
 
   useEffect(() => {
     if (invoices.length > 0 && (!selectedInvoice || !invoices.some(i => i.id === selectedInvoice.id))) {
@@ -40,6 +48,13 @@ export const SalesView: React.FC<SalesViewProps> = ({ invoices, onOpenQuickSale,
   const cashSalesToday = todaysInvoices.filter(i => i.paymentMethod === 'CASH').reduce((sum, i) => sum + i.totalAmount, 0);
   const creditSalesToday = todaysInvoices.filter(i => i.paymentMethod === 'CREDIT / A/R').reduce((sum, i) => sum + i.totalAmount, 0);
   const totalRevenueAllTime = invoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
+
+  const displayedInvoices = invoices.filter(inv => {
+    if (salesFilter === 'TODAY') return inv.date === todayStr;
+    if (salesFilter === 'CASH_TODAY') return inv.date === todayStr && inv.paymentMethod === 'CASH';
+    if (salesFilter === 'CREDIT_TODAY') return inv.date === todayStr && inv.paymentMethod === 'CREDIT / A/R';
+    return true;
+  });
 
   // Group invoices by date for audit log history
   const auditDatesMap = invoices.reduce((acc, inv) => {
@@ -99,58 +114,136 @@ export const SalesView: React.FC<SalesViewProps> = ({ invoices, onOpenQuickSale,
         <>
           {/* KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+            {/* Today's Volume */}
+            <div 
+              onClick={() => setSalesFilter(prev => prev === 'TODAY' ? 'ALL' : 'TODAY')}
+              className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 group ${
+                salesFilter === 'TODAY'
+                  ? 'bg-teal-50/80 border-teal-600 ring-2 ring-teal-700 shadow-sm'
+                  : 'bg-white border-slate-200 hover:border-teal-500 shadow-xs'
+              }`}
+              title="Click to filter today's invoices"
+            >
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">TODAY'S VOLUME</span>
-                <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-teal-800 transition-colors">TODAY'S VOLUME</span>
+                <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center group-hover:bg-teal-100 transition-colors">
                   <TrendingUp className="w-4 h-4" />
                 </div>
               </div>
               <div>
                 <h4 className="text-xl font-extrabold text-slate-900 font-mono">Rs.{totalRevenueToday.toLocaleString('en-PK', { minimumFractionDigits: 2 })}</h4>
-                <p className="text-[11px] text-slate-500 mt-1">{todaysInvoices.length} Bills today</p>
+                <div className="flex items-center justify-between text-[11px] text-slate-500 mt-1">
+                  <span>{todaysInvoices.length} Bills today</span>
+                  <span className="text-teal-700 font-bold group-hover:underline text-[10px]">
+                    {salesFilter === 'TODAY' ? 'Filtering Active ✓' : 'Filter →'}
+                  </span>
+                </div>
               </div>
             </div>
 
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+            {/* All-Time Revenue */}
+            <div 
+              onClick={() => setSalesFilter('ALL')}
+              className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 group ${
+                salesFilter === 'ALL'
+                  ? 'bg-teal-50/80 border-teal-600 ring-2 ring-teal-700 shadow-sm'
+                  : 'bg-white border-slate-200 hover:border-teal-500 shadow-xs'
+              }`}
+              title="Click to show all sales invoices"
+            >
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">ALL-TIME REVENUE</span>
-                <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-teal-800 transition-colors">ALL-TIME REVENUE</span>
+                <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center group-hover:bg-teal-100 transition-colors">
                   <Receipt className="w-4 h-4" />
                 </div>
               </div>
               <div>
                 <h4 className="text-xl font-extrabold text-slate-900 font-mono">Rs.{totalRevenueAllTime.toLocaleString('en-PK', { minimumFractionDigits: 2 })}</h4>
-                <p className="text-[11px] text-slate-500 mt-1">{invoices.length} Total records</p>
+                <div className="flex items-center justify-between text-[11px] text-slate-500 mt-1">
+                  <span>{invoices.length} Total records</span>
+                  <span className="text-teal-700 font-bold group-hover:underline text-[10px]">
+                    {salesFilter === 'ALL' ? 'Showing All ✓' : 'Show All →'}
+                  </span>
+                </div>
               </div>
             </div>
 
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+            {/* Cash Collected Today */}
+            <div 
+              onClick={() => setSalesFilter(prev => prev === 'CASH_TODAY' ? 'ALL' : 'CASH_TODAY')}
+              className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 group ${
+                salesFilter === 'CASH_TODAY'
+                  ? 'bg-emerald-50/80 border-emerald-600 ring-2 ring-emerald-700 shadow-sm'
+                  : 'bg-white border-slate-200 hover:border-emerald-500 shadow-xs'
+              }`}
+              title="Click to filter cash sales completed today"
+            >
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">CASH COLLECTED TODAY</span>
-                <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-emerald-800 transition-colors">CASH COLLECTED TODAY</span>
+                <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
                   <FileText className="w-4 h-4" />
                 </div>
               </div>
               <div>
                 <h4 className="text-xl font-extrabold text-emerald-700 font-mono">Rs.{cashSalesToday.toLocaleString('en-PK', { minimumFractionDigits: 2 })}</h4>
-                <p className="text-[11px] text-slate-500 mt-1">In drawer</p>
+                <div className="flex items-center justify-between text-[11px] text-slate-500 mt-1">
+                  <span>In drawer</span>
+                  <span className="text-emerald-700 font-bold group-hover:underline text-[10px]">
+                    {salesFilter === 'CASH_TODAY' ? 'Cash Active ✓' : 'Filter Cash →'}
+                  </span>
+                </div>
               </div>
             </div>
 
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+            {/* Today's Udhar Credit */}
+            <div 
+              onClick={() => setSalesFilter(prev => prev === 'CREDIT_TODAY' ? 'ALL' : 'CREDIT_TODAY')}
+              className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 group ${
+                salesFilter === 'CREDIT_TODAY'
+                  ? 'bg-orange-50/80 border-orange-500 ring-2 ring-orange-600 shadow-sm'
+                  : 'bg-white border-slate-200 hover:border-orange-400 shadow-xs'
+              }`}
+              title="Click to filter Udhar / Credit bills completed today"
+            >
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">TODAY'S UDHAR CREDIT</span>
-                <div className="w-7 h-7 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-orange-700 transition-colors">TODAY'S UDHAR CREDIT</span>
+                <div className="w-7 h-7 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center group-hover:bg-orange-100 transition-colors">
                   <RotateCcw className="w-4 h-4" />
                 </div>
               </div>
               <div>
                 <h4 className="text-xl font-extrabold text-orange-600 font-mono">Rs.{creditSalesToday.toLocaleString('en-PK', { minimumFractionDigits: 2 })}</h4>
-                <p className="text-[11px] text-slate-500 mt-1">Pending customer payment</p>
+                <div className="flex items-center justify-between text-[11px] text-slate-500 mt-1">
+                  <span>Pending payment</span>
+                  <span className="text-orange-700 font-bold group-hover:underline text-[10px]">
+                    {salesFilter === 'CREDIT_TODAY' ? 'Udhar Active ✓' : 'Filter Udhar →'}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
+
+          {/* Active Filter Banner */}
+          {salesFilter !== 'ALL' && (
+            <div className="bg-teal-50 border border-teal-200 text-teal-900 px-4 py-2.5 rounded-xl flex items-center justify-between text-xs font-semibold shadow-xs animate-in fade-in duration-200">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-teal-600 animate-pulse" />
+                <span>
+                  Filtering: Showing {salesFilter === 'TODAY' && "Today's Invoices"}
+                  {salesFilter === 'CASH_TODAY' && "Today's Cash Payments"}
+                  {salesFilter === 'CREDIT_TODAY' && "Today's Udhar Credit Purchases"}
+                  &nbsp;({displayedInvoices.length} bills found)
+                </span>
+              </div>
+              <button
+                onClick={() => setSalesFilter('ALL')}
+                className="text-teal-800 hover:text-teal-950 font-bold underline cursor-pointer text-xs flex items-center gap-1"
+              >
+                <span>Clear Filter (Show All)</span>
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
 
           {/* Main Grid: Ledger Table & Inspection Preview Receipt */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -159,19 +252,27 @@ export const SalesView: React.FC<SalesViewProps> = ({ invoices, onOpenQuickSale,
               <div>
                 <div className="p-4 border-b border-slate-200 flex items-center justify-between">
                   <h3 className="text-sm font-bold text-slate-900">Interactive Sales Invoice Ledger</h3>
-                  <span className="text-xs text-slate-500 font-medium">Click any row to view & reprint</span>
+                  <span className="text-xs text-slate-500 font-medium">
+                    Showing {displayedInvoices.length} of {invoices.length} invoices
+                  </span>
                 </div>
 
                 <div className="overflow-x-auto min-h-[300px]">
-                  {invoices.length === 0 ? (
+                  {displayedInvoices.length === 0 ? (
                     <div className="text-center py-16 px-4 space-y-3">
                       <div className="w-12 h-12 rounded-full bg-teal-50 text-teal-700 flex items-center justify-center mx-auto">
                         <Receipt className="w-6 h-6" />
                       </div>
-                      <h4 className="text-sm font-bold text-slate-900">No Sales Invoices Generated Yet</h4>
+                      <h4 className="text-sm font-bold text-slate-900">No Sales Invoices Matched This Filter</h4>
                       <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                        Complete your first checkout in POS terminal to inspect transaction history here.
+                        Try clearing the filter or recording a new sale in POS.
                       </p>
+                      <button
+                        onClick={() => setSalesFilter('ALL')}
+                        className="bg-teal-800 hover:bg-teal-900 text-white text-xs font-bold px-3 py-1.5 rounded-lg cursor-pointer"
+                      >
+                        Show All Invoices
+                      </button>
                     </div>
                   ) : (
                     <table className="w-full text-left border-collapse text-xs">
@@ -185,7 +286,7 @@ export const SalesView: React.FC<SalesViewProps> = ({ invoices, onOpenQuickSale,
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                        {invoices.map((inv) => {
+                        {displayedInvoices.map((inv) => {
                           const isSelected = selectedInvoice?.id === inv.id;
                           return (
                             <tr 

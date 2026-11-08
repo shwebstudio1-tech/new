@@ -7,19 +7,40 @@ interface EditMedicineModalProps {
   onClose: () => void;
   medicine: Medicine | null;
   onUpdateMedicine: (updatedMed: Medicine) => Promise<void>;
+  categories?: string[];
 }
 
 export const EditMedicineModal: React.FC<EditMedicineModalProps> = ({
   isOpen,
   onClose,
   medicine,
-  onUpdateMedicine
+  onUpdateMedicine,
+  categories
 }) => {
   const [name, setName] = useState('');
   const [genericName, setGenericName] = useState('');
   const [manufacturer, setManufacturer] = useState('');
   const [sku, setSku] = useState('');
-  const [category, setCategory] = useState<any>('Antibiotic (Rx)');
+  const [category, setCategory] = useState<string>('Antibiotic (Rx)');
+
+  const availableCategories = React.useMemo(() => {
+    const defaults = [
+      'Antibiotic (Rx)',
+      'Analgesic (OTC)',
+      'Cold Chain (Rx)',
+      'Gastroenterology',
+      'Surgical Consumable',
+      'Surgical & Wound',
+      'Antacid',
+      'Protective',
+      'Syrup',
+      'Injection',
+      'Dermatology',
+      'Vitamins & Supplements'
+    ];
+    const propsList = (categories || []).map(c => c.charAt(0).toUpperCase() + c.slice(1).toLowerCase());
+    return Array.from(new Set([...defaults, ...propsList]));
+  }, [categories]);
   const [shelfLocation, setShelfLocation] = useState('');
   const [batchNumber, setBatchNumber] = useState('');
   const [stock, setStock] = useState(0);
@@ -177,14 +198,9 @@ export const EditMedicineModal: React.FC<EditMedicineModalProps> = ({
                 onChange={(e) => setCategory(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 font-medium text-slate-800 focus:outline-none focus:border-teal-700"
               >
-                <option>Antibiotic (Rx)</option>
-                <option>Analgesic (OTC)</option>
-                <option>Cold Chain (Rx)</option>
-                <option>Gastroenterology</option>
-                <option>Surgical Consumable</option>
-                <option>Surgical & Wound</option>
-                <option>Antacid</option>
-                <option>Protective</option>
+                {availableCategories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
               </select>
             </div>
           </div>

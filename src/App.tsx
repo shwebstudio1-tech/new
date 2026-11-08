@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, doc, setDoc, onSnapshot, updateDoc, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { db, auth, OperationType, handleFirestoreError } from './lib/firebase';
-import { TabType, Medicine, Invoice, CartItem, ShiftInfo, Customer, KhataTransaction } from './types';
+import { TabType, Medicine, Invoice, CartItem, ShiftInfo, Customer, KhataTransaction, PurchaseOrder, Supplier } from './types';
 import { initialShift } from './mockData';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -33,14 +33,47 @@ export interface UserProfile {
 export default function App() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(() => {
     const saved = localStorage.getItem('talha_user_session');
-    return saved ? JSON.parse(saved) : null;
+    const profile = saved ? JSON.parse(saved) : null;
+    if (profile) {
+      profile.name = localStorage.getItem('talha_operator_name') || profile.name;
+      profile.role = localStorage.getItem('talha_operator_role') || profile.role;
+      profile.photoURL = localStorage.getItem('talha_operator_avatar') || profile.photoURL;
+    }
+    return profile;
   });
+
+  useEffect(() => {
+    const handleStorage = () => {
+      setUserProfile(prev => prev ? {
+        ...prev,
+        name: localStorage.getItem('talha_operator_name') || prev.name,
+        role: localStorage.getItem('talha_operator_role') || prev.role,
+        photoURL: localStorage.getItem('talha_operator_avatar') || prev.photoURL
+      } : null);
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
 
   const [currentTab, setCurrentTab] = useState<TabType>('dashboard');
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [purchases, setPurchases] = useState<PurchaseOrder[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [categories, setCategories] = useState<string[]>([
+    'ANTIBIOTIC',
+    'ANALGESIC',
+    'COLD CHAIN',
+    'SURGICAL',
+    'GASTROENTEROLOGY',
+    'ANTACID',
+    'SYRUP',
+    'INJECTION',
+    'DERMATOLOGY',
+    'VITAMINS & SUPPLEMENTS'
+  ]);
   const [shift, setShift] = useState<ShiftInfo>(initialShift);
   const [searchTerm, setSearchTerm] = useState<string>('');
 
@@ -49,6 +82,14 @@ export default function App() {
   const [editingMedicine, setEditingMedicine] = useState<Medicine | null>(null);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [printingInvoice, setPrintingInvoice] = useState<Invoice | null>(null);
+  const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   const [credentials, setCredentials] = useState<{ username: string; password: string }>(() => {
     const saved = localStorage.getItem('talha_auth_credentials');
@@ -78,6 +119,42 @@ export default function App() {
 
     return () => unsubAuthSettings();
   }, []);
+
+  const [storeAddress, setStoreAddress] = useState<string>('Opposite DHQ Hospital, Punjab');
+
+  useEffect(() => {
+    const unsubStoreSettings = onSnapshot(doc(db, 'settings', 'store'), (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        if (data.address) {
+          setStoreAddress(data.address);
+        }
+      } else {
+        setDoc(doc(db, 'settings', 'store'), {
+          address: 'Opposite DHQ Hospital, Punjab',
+          updatedAt: new Date().toISOString()
+        }).catch(() => {});
+      }
+    }, (error) => {
+      console.log('Using default store address', error);
+    });
+
+    return () => unsubStoreSettings();
+  }, []);
+
+  const handleUpdateStoreAddress = async (newAddress: string): Promise<boolean> => {
+    try {
+      await setDoc(doc(db, 'settings', 'store'), {
+        address: newAddress,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+      setStoreAddress(newAddress);
+      return true;
+    } catch (e) {
+      console.error('Failed to update address', e);
+      return false;
+    }
+  };
 
   const handleUpdatePassword = async (newPass: string): Promise<boolean> => {
     try {
@@ -133,10 +210,45 @@ export default function App() {
       handleFirestoreError(error, OperationType.LIST, 'customers');
     });
 
+    const unsubPurchases = onSnapshot(collection(db, 'purchases'), (snapshot) => {
+      const items: PurchaseOrder[] = [];
+      snapshot.forEach(docSnap => {
+        items.push({ ...(docSnap.data() as PurchaseOrder), id: docSnap.id });
+      });
+      items.sort((a, b) => b.id.localeCompare(a.id));
+      setPurchases(items);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'purchases');
+    });
+
+    const unsubSuppliers = onSnapshot(collection(db, 'suppliers'), (snapshot) => {
+      const items: Supplier[] = [];
+      snapshot.forEach(docSnap => {
+        items.push({ ...(docSnap.data() as Supplier), id: docSnap.id });
+      });
+      setSuppliers(items);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'suppliers');
+    });
+
+    const unsubCategories = onSnapshot(collection(db, 'categories'), (snapshot) => {
+      const items: string[] = [];
+      snapshot.forEach(docSnap => {
+        const d = docSnap.data();
+        if (d?.name) items.push(String(d.name).toUpperCase());
+      });
+      if (items.length > 0) {
+        setCategories(prev => Array.from(new Set([...prev, ...items])));
+      }
+    }, () => {});
+
     return () => {
       unsubMedicines();
       unsubInvoices();
       unsubCustomers();
+      unsubPurchases();
+      unsubSuppliers();
+      unsubCategories();
     };
   }, []);
 
@@ -219,6 +331,15 @@ export default function App() {
     }
   };
 
+  const handleUpdateCustomer = async (customerId: string, data: Partial<Customer>) => {
+    try {
+      await updateDoc(doc(db, 'customers', customerId), data);
+      alert('Customer details updated successfully.');
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `customers/${customerId}`);
+    }
+  };
+
   const handleAddKhataTransaction = async (customerId: string, transaction: Omit<KhataTransaction, 'id' | 'remainingBalance'>) => {
     const cust = customers.find(c => c.id === customerId);
     if (!cust) return;
@@ -247,67 +368,175 @@ export default function App() {
     }
   };
 
+  const handleDeleteCustomer = async (customerId: string) => {
+    if (!window.confirm('Are you sure you want to permanently delete this Khata account and all its history?')) return;
+    try {
+      await deleteDoc(doc(db, 'customers', customerId));
+      alert('Khata account deleted successfully.');
+    } catch (e) {
+      handleFirestoreError(e, OperationType.DELETE, `customers/${customerId}`);
+    }
+  };
+
+  const handleDeleteKhataTransaction = async (customerId: string, txnId: string) => {
+    const cust = customers.find(c => c.id === customerId);
+    if (!cust || !cust.transactions) return;
+
+    if (!window.confirm('Delete this transaction entry? This will also recalculate the total balance.')) return;
+
+    const filteredTxns = cust.transactions.filter(t => t.id !== txnId);
+    
+    // Recalculate total debt from history
+    // Note: We need to sort by date/time ideally, but they are strings.
+    // For now, let's just sum up the remaining balance logic if we were to replay them, 
+    // or more simply, just adjust the totalDebt by the removed transaction's impact.
+    const deletedTxn = cust.transactions.find(t => t.id === txnId);
+    if (!deletedTxn) return;
+
+    const delta = deletedTxn.type === 'CREDIT_PURCHASE' ? -deletedTxn.amount : deletedTxn.amount;
+    const newTotalDebt = Math.max(0, (cust.totalDebt || 0) + delta);
+
+    try {
+      await updateDoc(doc(db, 'customers', customerId), {
+        totalDebt: newTotalDebt,
+        transactions: filteredTxns
+      });
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `customers/${customerId}`);
+    }
+  };
+
+  const handleAddPurchase = async (data: Omit<PurchaseOrder, 'id'>) => {
+    const id = `po-${Date.now()}`;
+    const newPo: PurchaseOrder = { ...data, id };
+    try {
+      await setDoc(doc(db, 'purchases', id), newPo);
+      alert(`Purchase Order "${newPo.poNumber}" recorded successfully!`);
+    } catch (e) {
+      handleFirestoreError(e, OperationType.CREATE, `purchases/${id}`);
+    }
+  };
+
+  const handleAddSupplier = async (data: Omit<Supplier, 'id' | 'totalOrders' | 'totalPaid'>) => {
+    const id = `sup-${Date.now()}`;
+    const newSup: Supplier = {
+      ...data,
+      id,
+      totalOrders: 0,
+      totalPaid: 0
+    };
+    try {
+      await setDoc(doc(db, 'suppliers', id), newSup);
+      alert(`Supplier "${newSup.name}" created successfully!`);
+    } catch (e) {
+      handleFirestoreError(e, OperationType.CREATE, `suppliers/${id}`);
+    }
+  };
+
+  const handleAddCategory = async (catName: string) => {
+    const clean = catName.trim().toUpperCase();
+    if (!clean) return;
+    const catId = `cat-${clean.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+    try {
+      await setDoc(doc(db, 'categories', catId), {
+        name: clean,
+        createdAt: new Date().toISOString()
+      });
+      setCategories(prev => Array.from(new Set([...prev, clean])));
+      setToast({ type: 'success', message: `Category "${clean}" added successfully!` });
+    } catch (e) {
+      console.error('Failed to save category to Firestore', e);
+      setCategories(prev => Array.from(new Set([...prev, clean])));
+      setToast({ type: 'success', message: `Category "${clean}" added!` });
+    }
+  };
+
   const handleResetDailyData = async () => {
-    if (!confirm("Are you sure you want to reset today's daily revenue register? This will reset the shift register cash balance to Rs. 0 for the new operative day.")) return;
-    setShift(prev => ({ ...prev, drawerCash: 0 }));
-    alert("Daily revenue register reset successfully for the new operative day!");
+    try {
+      const snap = await getDocs(collection(db, 'invoices'));
+      if (!snap.empty) {
+        const deletePromises = snap.docs.map(docSnap => deleteDoc(doc(db, 'invoices', docSnap.id)));
+        await Promise.all(deletePromises);
+      }
+      setInvoices([]);
+      setShift(prev => ({ ...prev, drawerCash: 0 }));
+      setToast({ type: 'success', message: "SUCCESS: Today's revenue register reset to Rs. 0.00!" });
+    } catch (err) {
+      console.error("Reset revenue error:", err);
+      setInvoices([]);
+      setShift(prev => ({ ...prev, drawerCash: 0 }));
+      setToast({ type: 'success', message: "Revenue register reset to Rs. 0.00!" });
+    }
   };
 
   const handleWipeDatabase = async () => {
-    const pass = prompt('MASTER RESET: Type "DELETE" to wipe entire database:');
-    if (pass !== 'DELETE') return;
-
     try {
-      console.log('--- MASTER WIPE INITIATED ---');
-      const batch = writeBatch(db);
-      
-      const medSnap = await getDocs(collection(db, 'medicines'));
-      medSnap.forEach(doc => batch.delete(doc.ref));
-      
-      const invSnap = await getDocs(collection(db, 'invoices'));
-      invSnap.forEach(doc => batch.delete(doc.ref));
+      const collectionsToClear = ['medicines', 'invoices', 'customers', 'purchases', 'suppliers'];
+      for (const colName of collectionsToClear) {
+        try {
+          const snap = await getDocs(collection(db, colName));
+          if (!snap.empty) {
+            const deletePromises = snap.docs.map(docSnap => deleteDoc(doc(db, colName, docSnap.id)));
+            await Promise.all(deletePromises);
+          }
+        } catch (colErr) {
+          console.error(`Error clearing collection ${colName}:`, colErr);
+        }
+      }
 
-      const custSnap = await getDocs(collection(db, 'customers'));
-      custSnap.forEach(doc => batch.delete(doc.ref));
-      
-      await batch.commit();
-      
       setMedicines([]);
       setInvoices([]);
       setCustomers([]);
+      setPurchases([]);
+      setSuppliers([]);
+      setCart([]);
       setShift(prev => ({ ...prev, drawerCash: 0 }));
-      
-      alert('DATABASE WIPED: All records have been permanently removed.');
-      window.location.reload();
-    } catch (error) {
-      console.error('Wipe failed:', error);
-      alert('Critical Error during wipe. Some data may remain.');
+      localStorage.clear();
+      setToast({ type: 'success', message: "SUCCESS: All store database records have been permanently cleared!" });
+    } catch (err) {
+      console.error("Master wipe error:", err);
+      setMedicines([]);
+      setInvoices([]);
+      setCustomers([]);
+      setPurchases([]);
+      setSuppliers([]);
+      setCart([]);
+      setShift(prev => ({ ...prev, drawerCash: 0 }));
+      setToast({ type: 'success', message: "Store records cleared successfully!" });
     }
   };
 
   const handlePrint = (inv: Invoice) => {
     setPrintingInvoice(inv);
-    setTimeout(() => {
-      window.print();
-      setPrintingInvoice(null);
-    }, 100);
   };
 
-  const handleCompleteSale = async (shouldPrint: boolean = true) => {
+  const handleCompleteSale = async (
+    shouldPrint: boolean = true,
+    saleDetails?: {
+      customerName?: string;
+      customerPhone?: string;
+      customerCnic?: string;
+      paymentMethod?: 'CASH' | 'CREDIT / A/R' | 'VISA CARD';
+      discountAmount?: number;
+      taxRate?: number;
+      netTotal?: number;
+    }
+  ) => {
     if (cart.length === 0) return;
-    const totalAmount = cart.reduce((acc, item) => acc + (item.medicine.retailPrice * item.quantity), 0);
+    const totalAmount = saleDetails?.netTotal ?? cart.reduce((acc, item) => acc + (item.medicine.retailPrice * item.quantity), 0);
+    const custName = saleDetails?.customerName?.trim() || 'Walk-in Customer';
     const invId = `inv-${Date.now()}`;
     const newInv: Invoice = {
       id: invId,
       invoiceNumber: `#INV-${Math.floor(90000 + Math.random() * 10000)}`,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-      customerName: 'Walk-in Retail Patient',
-      customerType: 'Retail Customer',
+      customerName: custName,
+      customerType: custName.toLowerCase().includes('walk-in') ? 'Retail Customer' : 'Registered Khata Customer',
       doctor: 'Dr. A. Rahman (PMC-4912)',
       items: cart.map(i => ({ name: i.medicine.name, strength: i.medicine.sku, qty: i.quantity, price: i.medicine.retailPrice })),
       totalAmount,
-      paymentMethod: 'CASH',
+      paymentMethod: saleDetails?.paymentMethod || 'CASH',
       cashier: shift.pharmacistName,
       status: 'COMPLETED',
       amountTendered: totalAmount + 100,
@@ -327,11 +556,10 @@ export default function App() {
       
       if (shouldPrint) {
         handlePrint(newInv);
-        alert(`Sale Completed & Saved! Invoice ${newInv.invoiceNumber} printed.`);
+        setToast({ type: 'success', message: `Sale Completed & Saved! Invoice ${newInv.invoiceNumber} opened for printing.` });
       } else {
-        alert(`Sale Completed & Saved to Firestore! (Invoice ${newInv.invoiceNumber})`);
+        setToast({ type: 'success', message: `Sale Completed & Saved to Firestore! (Invoice ${newInv.invoiceNumber})` });
       }
-      setCurrentTab('sales');
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `invoices/${invId}`);
     }
@@ -429,6 +657,8 @@ export default function App() {
                 onOpenQuickSale={() => setIsQuickSaleOpen(true)}
                 onOpenAddMedicine={() => setIsAddMedicineOpen(true)}
                 onOpenEditMedicine={(med) => setEditingMedicine(med)}
+                onResetDailyData={handleResetDailyData}
+                onWipeDatabase={handleWipeDatabase}
               />
             )}
 
@@ -440,6 +670,9 @@ export default function App() {
                 onCompleteSale={handleCompleteSale}
                 onOpenAddMedicine={() => setIsAddMedicineOpen(true)}
                 shift={shift}
+                categories={categories}
+                onAddCategory={handleAddCategory}
+                customers={customers}
               />
             )}
 
@@ -449,6 +682,7 @@ export default function App() {
                 onOpenAddMedicine={() => setIsAddMedicineOpen(true)}
                 onDeleteMedicine={handleDeleteMedicine}
                 onOpenEditMedicine={(med) => setEditingMedicine(med)}
+                setCurrentTab={setCurrentTab}
               />
             )}
 
@@ -457,6 +691,7 @@ export default function App() {
                 invoices={invoices}
                 onOpenQuickSale={() => setIsQuickSaleOpen(true)}
                 onPrintInvoice={handlePrint}
+                setCurrentTab={setCurrentTab}
               />
             )}
 
@@ -464,7 +699,12 @@ export default function App() {
               <CustomersKhataView 
                 customers={customers}
                 onAddCustomer={handleAddCustomer}
+                onUpdateCustomer={handleUpdateCustomer}
                 onAddKhataTransaction={handleAddKhataTransaction}
+                onDeleteCustomer={handleDeleteCustomer}
+                onDeleteKhataTransaction={handleDeleteKhataTransaction}
+                setCurrentTab={setCurrentTab}
+                storeAddress={storeAddress}
               />
             )}
 
@@ -473,18 +713,26 @@ export default function App() {
                 medicines={medicines}
                 invoices={invoices}
                 onOpenAddMedicine={() => setIsAddMedicineOpen(true)}
+                setCurrentTab={setCurrentTab}
               />
             )}
 
             {currentTab === 'purchases' && (
               <PurchasesView 
+                purchases={purchases}
+                onAddPurchase={handleAddPurchase}
                 medicines={medicines}
                 onOpenAddMedicine={() => setIsAddMedicineOpen(true)}
+                setCurrentTab={setCurrentTab}
               />
             )}
 
             {currentTab === 'suppliers' && (
-              <SuppliersView />
+              <SuppliersView 
+                suppliers={suppliers}
+                onAddSupplier={handleAddSupplier}
+                setCurrentTab={setCurrentTab}
+              />
             )}
 
             {currentTab === 'reports' && (
@@ -492,16 +740,20 @@ export default function App() {
                 invoices={invoices}
                 customers={customers}
                 medicines={medicines}
+                setCurrentTab={setCurrentTab}
               />
             )}
 
             {currentTab === 'settings' && (
               <SettingsView 
                 onWipeDatabase={handleWipeDatabase}
+                onResetDailyData={handleResetDailyData}
                 setCurrentTab={setCurrentTab}
                 onSignOut={handleSignOut}
                 expectedCredentials={credentials}
                 onUpdatePassword={handleUpdatePassword}
+                storeAddress={storeAddress}
+                onUpdateStoreAddress={handleUpdateStoreAddress}
               />
             )}
           </main>
@@ -520,6 +772,8 @@ export default function App() {
           isOpen={isAddMedicineOpen}
           onClose={() => setIsAddMedicineOpen(false)}
           onAddMedicine={handleAddMedicine}
+          categories={categories}
+          onAddCategory={handleAddCategory}
         />
 
         <EditMedicineModal 
@@ -527,10 +781,20 @@ export default function App() {
           onClose={() => setEditingMedicine(null)}
           medicine={editingMedicine}
           onUpdateMedicine={handleUpdateMedicine}
+          categories={categories}
         />
 
       </div>
-      <PrintableInvoice invoice={printingInvoice} />
+      <PrintableInvoice invoice={printingInvoice} onClose={() => setPrintingInvoice(null)} storeAddress={storeAddress} />
+
+      {/* Floating Toast Notification */}
+      {toast && (
+        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-3 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl border border-slate-700 animate-in slide-in-from-bottom-5 duration-200 text-xs font-medium max-w-md">
+          <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${toast.type === 'success' ? 'bg-emerald-400' : 'bg-red-400'}`} />
+          <span className="flex-1">{toast.message}</span>
+          <button onClick={() => setToast(null)} className="ml-2 text-slate-400 hover:text-white font-bold cursor-pointer">✕</button>
+        </div>
+      )}
     </>
   );
 }

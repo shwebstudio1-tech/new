@@ -1,14 +1,15 @@
 import React from 'react';
 import { BarChart3, TrendingUp, DollarSign, CreditCard, BookOpen, MessageSquare, ShieldCheck, Printer } from 'lucide-react';
-import { Invoice, Customer, Medicine } from '../types';
+import { Invoice, Customer, Medicine, TabType } from '../types';
 
 interface ReportsViewProps {
   invoices: Invoice[];
   customers: Customer[];
   medicines: Medicine[];
+  setCurrentTab: (tab: TabType) => void;
 }
 
-export const ReportsView: React.FC<ReportsViewProps> = ({ invoices, customers, medicines }) => {
+export const ReportsView: React.FC<ReportsViewProps> = ({ invoices, customers, medicines, setCurrentTab }) => {
   const todayStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   const todaysInvoices = invoices.filter(i => i.date === todayStr);
 
@@ -46,55 +47,83 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ invoices, customers, m
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div 
+          onClick={() => setCurrentTab('sales')}
+          className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-teal-500 transition-all cursor-pointer flex flex-col justify-between group"
+          title="Click to view all sales invoices"
+        >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">TODAY'S TOTAL BILLS</span>
-            <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-teal-800">TODAY'S TOTAL BILLS</span>
+            <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center group-hover:bg-teal-100">
               <BarChart3 className="w-4 h-4" />
             </div>
           </div>
           <div>
             <h4 className="text-2xl font-extrabold text-slate-900 font-mono">{totalBillsToday} Bills</h4>
-            <p className="text-[11px] text-slate-500 mt-1">Total volume: Rs. {totalRevenueToday.toLocaleString('en-PK')}</p>
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-[11px] text-slate-500">Total volume: Rs. {totalRevenueToday.toLocaleString('en-PK')}</p>
+              <span className="text-[10px] font-bold text-teal-700 group-hover:underline">View Sales →</span>
+            </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div 
+          onClick={() => setCurrentTab('sales')}
+          className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-emerald-500 transition-all cursor-pointer flex flex-col justify-between group"
+          title="Click to view cash sales ledger"
+        >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">CASH COLLECTED TODAY</span>
-            <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-emerald-800">CASH COLLECTED TODAY</span>
+            <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center group-hover:bg-emerald-100">
               <DollarSign className="w-4 h-4" />
             </div>
           </div>
           <div>
             <h4 className="text-2xl font-extrabold text-emerald-700 font-mono">Rs. {cashSalesToday.toLocaleString('en-PK')}</h4>
-            <p className="text-[11px] text-slate-500 mt-1">Physical drawer cash</p>
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-[11px] text-slate-500">Physical drawer cash</p>
+              <span className="text-[10px] font-bold text-emerald-700 group-hover:underline">Audit Cash →</span>
+            </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div 
+          onClick={() => setCurrentTab('sales')}
+          className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-teal-500 transition-all cursor-pointer flex flex-col justify-between group"
+          title="Click to view digital payments ledger"
+        >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">ONLINE / CARD PAYMENTS</span>
-            <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-teal-800">ONLINE / CARD PAYMENTS</span>
+            <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center group-hover:bg-teal-100">
               <CreditCard className="w-4 h-4" />
             </div>
           </div>
           <div>
             <h4 className="text-2xl font-extrabold text-teal-800 font-mono">Rs. {cardSalesToday.toLocaleString('en-PK')}</h4>
-            <p className="text-[11px] text-slate-500 mt-1">Bank card / POS terminal</p>
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-[11px] text-slate-500">Bank card / POS terminal</p>
+              <span className="text-[10px] font-bold text-teal-700 group-hover:underline">View Bank →</span>
+            </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div 
+          onClick={() => setCurrentTab('customers')}
+          className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-orange-500 transition-all cursor-pointer flex flex-col justify-between group"
+          title="Click to view pending Udhar receivables"
+        >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">TOTAL REMAINING (UDHAR)</span>
-            <div className="w-7 h-7 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-orange-700">TOTAL REMAINING (UDHAR)</span>
+            <div className="w-7 h-7 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center group-hover:bg-orange-100">
               <BookOpen className="w-4 h-4" />
             </div>
           </div>
           <div>
             <h4 className="text-2xl font-extrabold text-orange-600 font-mono">Rs. {totalUdharRemaining.toLocaleString('en-PK')}</h4>
-            <p className="text-[11px] text-slate-500 mt-1">{debtorsList.length} Debtors pending cash</p>
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-[11px] text-slate-500">{debtorsList.length} Debtors pending cash</p>
+              <span className="text-[10px] font-bold text-orange-700 group-hover:underline">View Khata →</span>
+            </div>
           </div>
         </div>
       </div>

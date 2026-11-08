@@ -1,38 +1,22 @@
 import React, { useState } from 'react';
-import { ShoppingBag, Plus, Search, Calendar, DollarSign, CheckCircle2, Clock, FileText, Truck } from 'lucide-react';
-import { PurchaseOrder, Medicine } from '../types';
+import { ShoppingBag, Plus, Search, Calendar, DollarSign, CheckCircle2, Clock, FileText, Truck, X } from 'lucide-react';
+import { PurchaseOrder, Medicine, TabType } from '../types';
 
 interface PurchasesViewProps {
+  purchases: PurchaseOrder[];
+  onAddPurchase: (po: Omit<PurchaseOrder, 'id'>) => Promise<void>;
   medicines: Medicine[];
   onOpenAddMedicine: () => void;
+  setCurrentTab: (tab: TabType) => void;
 }
 
-export const PurchasesView: React.FC<PurchasesViewProps> = ({ medicines, onOpenAddMedicine }) => {
-  const [purchases, setPurchases] = useState<PurchaseOrder[]>([
-    {
-      id: 'po-101',
-      poNumber: 'PO-2026-089',
-      date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-      time: '10:30 AM',
-      supplierName: 'GlaxoSmithKline (GSK) Pakistan',
-      medicineName: 'Panadol Extra 500mg (100s)',
-      qtyReceived: 50,
-      totalCost: 12500,
-      paymentStatus: 'PAID'
-    },
-    {
-      id: 'po-102',
-      poNumber: 'PO-2026-090',
-      date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-      time: '02:15 PM',
-      supplierName: 'Getz Pharma (Pvt) Ltd',
-      medicineName: 'Augmentin 625mg (14s)',
-      qtyReceived: 30,
-      totalCost: 14400,
-      paymentStatus: 'PAID'
-    }
-  ]);
-
+export const PurchasesView: React.FC<PurchasesViewProps> = ({ 
+  purchases, 
+  onAddPurchase,
+  medicines, 
+  onOpenAddMedicine,
+  setCurrentTab
+}) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [supplierName, setSupplierName] = useState('');
   const [medicineName, setMedicineName] = useState('');
@@ -40,13 +24,14 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({ medicines, onOpenA
   const [totalCost, setTotalCost] = useState<number>(0);
   const [paymentStatus, setPaymentStatus] = useState<'PAID' | 'CREDIT_PENDING'>('PAID');
 
-  const handleAddPurchase = (e: React.FormEvent) => {
+  const handleAddPurchase = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supplierName || !medicineName || qtyReceived <= 0) return;
 
-    const newPO: PurchaseOrder = {
-      id: `po-${Date.now()}`,
-      poNumber: `PO-${Math.floor(1000 + Math.random() * 9000)}`,
+    const poNumber = `PO-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    await onAddPurchase({
+      poNumber,
       date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       supplierName,
@@ -54,15 +39,13 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({ medicines, onOpenA
       qtyReceived,
       totalCost,
       paymentStatus
-    };
+    });
 
-    setPurchases(prev => [newPO, ...prev]);
     setIsModalOpen(false);
     setSupplierName('');
     setMedicineName('');
     setQtyReceived(10);
     setTotalCost(0);
-    alert(`Purchase Record "${newPO.poNumber}" logged successfully!`);
   };
 
   const totalPurchaseMoney = purchases.reduce((sum, p) => sum + p.totalCost, 0);
@@ -94,42 +77,63 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({ medicines, onOpenA
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div 
+          onClick={() => setCurrentTab('inventory')}
+          className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-teal-500 transition-all cursor-pointer flex flex-col justify-between group"
+          title="Click to view all items in medicine catalog"
+        >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">TOTAL PURCHASE INVOICES</span>
-            <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-teal-800">TOTAL PURCHASE INVOICES</span>
+            <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center group-hover:bg-teal-100">
               <ShoppingBag className="w-4 h-4" />
             </div>
           </div>
           <div>
             <h4 className="text-xl font-extrabold text-slate-900 font-mono">{purchases.length} Orders</h4>
-            <p className="text-[11px] text-slate-500 mt-1">Logged shop bills</p>
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-[11px] text-slate-500">Logged shop bills</p>
+              <span className="text-[10px] font-bold text-teal-700 group-hover:underline">Catalog →</span>
+            </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div 
+          onClick={() => setCurrentTab('reports')}
+          className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-teal-500 transition-all cursor-pointer flex flex-col justify-between group"
+          title="Click to view financial audit reports"
+        >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">TOTAL PURCHASE MONEY (BILLS)</span>
-            <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-teal-800">TOTAL PURCHASE MONEY (BILLS)</span>
+            <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center group-hover:bg-teal-100">
               <DollarSign className="w-4 h-4" />
             </div>
           </div>
           <div>
             <h4 className="text-xl font-extrabold text-teal-800 font-mono">Rs. {totalPurchaseMoney.toLocaleString('en-PK')}</h4>
-            <p className="text-[11px] text-slate-500 mt-1">Supplier bill total</p>
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-[11px] text-slate-500">Supplier bill total</p>
+              <span className="text-[10px] font-bold text-teal-700 group-hover:underline">Audit →</span>
+            </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div 
+          onClick={() => setCurrentTab('suppliers')}
+          className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-emerald-500 transition-all cursor-pointer flex flex-col justify-between group"
+          title="Click to view supplier directory"
+        >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">SUPPLIER BILL STATUS</span>
-            <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-emerald-800">SUPPLIER BILL STATUS</span>
+            <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center group-hover:bg-emerald-100">
               <CheckCircle2 className="w-4 h-4" />
             </div>
           </div>
           <div>
             <h4 className="text-xl font-extrabold text-emerald-700 font-mono">VERIFIED</h4>
-            <p className="text-[11px] text-slate-500 mt-1">Audited with inventory stock</p>
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-[11px] text-slate-500">Audited with inventory stock</p>
+              <span className="text-[10px] font-bold text-emerald-700 group-hover:underline">Suppliers →</span>
+            </div>
           </div>
         </div>
       </div>

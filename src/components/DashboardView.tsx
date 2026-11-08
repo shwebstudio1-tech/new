@@ -16,7 +16,11 @@ import {
   CreditCard,
   FileText,
   Edit,
-  PackagePlus
+  PackagePlus,
+  QrCode,
+  CheckCircle,
+  RotateCcw,
+  Trash2
 } from 'lucide-react';
 import { Medicine, Invoice, TabType } from '../types';
 
@@ -27,6 +31,8 @@ interface DashboardViewProps {
   onOpenQuickSale: () => void;
   onOpenAddMedicine: () => void;
   onOpenEditMedicine?: (med: Medicine) => void;
+  onResetDailyData?: () => void;
+  onWipeDatabase?: () => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({ 
@@ -35,15 +41,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   setCurrentTab,
   onOpenQuickSale,
   onOpenAddMedicine,
-  onOpenEditMedicine
+  onOpenEditMedicine,
+  onResetDailyData,
+  onWipeDatabase
 }) => {
   // Invoice Filter & Search States
   const [searchTerm, setSearchTerm] = useState('');
+  const [isBarcodeScannerOpen, setIsBarcodeScannerOpen] = useState(false);
+  const [scannedBarcode, setScannedBarcode] = useState('');
+  const [scannedResult, setScannedResult] = useState<Medicine | null>(null);
   const [dateRangeFilter, setDateRangeFilter] = useState<'all' | 'today' | 'yesterday' | '7days' | 'month' | 'custom'>('all');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   const [timeFilter, setTimeFilter] = useState<'all' | 'morning' | 'evening' | 'night'>('all');
   const [paymentFilter, setPaymentFilter] = useState<'all' | 'CASH' | 'CREDIT / A/R' | 'VISA CARD'>('all');
+  const [activeStatCard, setActiveStatCard] = useState<'today_revenue' | 'today_invoices' | 'all_bills' | null>(null);
+  const billsTableRef = React.useRef<HTMLDivElement>(null);
+
+  // Confirmation Modal State
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const todayStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   const todaysInvoices = invoices.filter(inv => inv.date === todayStr);
@@ -141,6 +158,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-[1600px] mx-auto select-none">
+
       {/* Stock Warning Banner with Direct Add & Edit Buttons */}
       {lowStockItems.length > 0 && (
         <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
@@ -189,6 +207,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         <div className="flex flex-wrap items-center gap-2">
           <button 
+            onClick={() => window.location.reload()}
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3.5 py-2.5 rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer"
+          >
+            <RotateCcw className="w-4 h-4 text-teal-700" />
+            <span>Refresh</span>
+          </button>
+
+          <button 
+            onClick={() => setIsBarcodeScannerOpen(true)}
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white px-3.5 py-2.5 rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer"
+          >
+            <QrCode className="w-4 h-4" />
+            <span>Scan Barcode</span>
+          </button>
+
+          <button 
             onClick={onOpenQuickSale}
             className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-teal-800 hover:bg-teal-900 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer"
           >
@@ -209,92 +243,209 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {/* Revenue */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between">
+        <div 
+          onClick={() => {
+            setDateRangeFilter('today');
+            setPaymentFilter('all');
+            setTimeFilter('all');
+            setSearchTerm('');
+            setActiveStatCard('today_revenue');
+            billsTableRef.current?.scrollIntoView({ behavior: 'smooth' });
+          }}
+          className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 select-none group ${
+            activeStatCard === 'today_revenue' && dateRangeFilter === 'today'
+              ? 'bg-teal-50/80 border-teal-600 ring-2 ring-teal-700 shadow-sm'
+              : 'bg-white border-slate-200 hover:border-teal-500 shadow-xs'
+          }`}
+          title="Click to view today's revenue transactions"
+        >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">TODAY'S REVENUE</span>
-            <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center">
-              <TrendingUp className="w-4 h-4" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-teal-800 transition-colors">TODAY'S REVENUE</span>
+            <div className="flex items-center gap-1">
+              {onResetDailyData && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsResetModalOpen(true);
+                  }}
+                  className="p-1 text-slate-400 hover:text-amber-700 hover:bg-amber-50 rounded transition-colors cursor-pointer"
+                  title="Reset Today's Revenue Register to Rs. 0.00"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+              )}
+              <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center group-hover:bg-teal-100 transition-colors">
+                <TrendingUp className="w-4 h-4" />
+              </div>
             </div>
           </div>
           <div>
             <h4 className="text-xl font-extrabold text-slate-900 font-mono">Rs.{totalRevenue.toLocaleString('en-PK', { minimumFractionDigits: 2 })}</h4>
-            <p className="text-[11px] text-slate-500 mt-1">Today's total volume</p>
+            <div className="flex items-center justify-between text-[11px] text-slate-500 mt-1">
+              <span>Today's volume</span>
+              <span className="text-teal-700 font-bold group-hover:underline text-[10px]">Filter bills →</span>
+            </div>
           </div>
         </div>
 
         {/* Invoices */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between">
+        <div 
+          onClick={() => {
+            setDateRangeFilter('today');
+            setPaymentFilter('all');
+            setTimeFilter('all');
+            setSearchTerm('');
+            setActiveStatCard('today_invoices');
+            billsTableRef.current?.scrollIntoView({ behavior: 'smooth' });
+          }}
+          className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 select-none group ${
+            activeStatCard === 'today_invoices' && dateRangeFilter === 'today'
+              ? 'bg-teal-50/80 border-teal-600 ring-2 ring-teal-700 shadow-sm'
+              : 'bg-white border-slate-200 hover:border-teal-500 shadow-xs'
+          }`}
+          title="Click to view today's completed invoices"
+        >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">TODAY'S INVOICES</span>
-            <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-teal-800 transition-colors">TODAY'S INVOICES</span>
+            <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center group-hover:bg-teal-100 transition-colors">
               <Receipt className="w-4 h-4" />
             </div>
           </div>
           <div>
             <h4 className="text-xl font-extrabold text-slate-900 font-mono">{totalTxns} Txns</h4>
-            <p className="text-[11px] text-slate-500 mt-1">Completed slips</p>
+            <div className="flex items-center justify-between text-[11px] text-slate-500 mt-1">
+              <span>Completed slips</span>
+              <span className="text-teal-700 font-bold group-hover:underline text-[10px]">View slips →</span>
+            </div>
           </div>
         </div>
 
         {/* Inventory SKUs */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between">
+        <div 
+          onClick={() => setCurrentTab('inventory')}
+          className="bg-white p-4 rounded-xl border border-slate-200 hover:border-teal-500 shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer flex flex-col justify-between select-none group"
+          title="Click to open full Medicine Catalog & Inventory Stock"
+        >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">ACTIVE INVENTORY</span>
-            <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-teal-800 transition-colors">ACTIVE INVENTORY</span>
+            <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center group-hover:bg-teal-100 transition-colors">
               <Boxes className="w-4 h-4" />
             </div>
           </div>
           <div>
             <h4 className="text-xl font-extrabold text-slate-900 font-mono">{medicines.length} SKUs</h4>
-            <p className="text-[11px] text-emerald-600 font-semibold mt-1">Active items</p>
+            <div className="flex items-center justify-between text-[11px] text-emerald-600 font-semibold mt-1">
+              <span>Active items</span>
+              <span className="text-teal-700 font-bold group-hover:underline text-[10px]">Open stock →</span>
+            </div>
           </div>
         </div>
 
         {/* Reorder Warnings */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between">
+        <div 
+          onClick={() => setCurrentTab('inventory')}
+          className="bg-white p-4 rounded-xl border border-slate-200 hover:border-red-500 shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer flex flex-col justify-between select-none group"
+          title="Click to review low stock items in Inventory"
+        >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">REORDER WARNINGS</span>
-            <div className="w-7 h-7 rounded-lg bg-red-50 text-red-600 flex items-center justify-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-red-700 transition-colors">REORDER WARNINGS</span>
+            <div className="w-7 h-7 rounded-lg bg-red-50 text-red-600 flex items-center justify-center group-hover:bg-red-100 transition-colors">
               <AlertTriangle className="w-4 h-4" />
             </div>
           </div>
           <div>
             <h4 className="text-xl font-extrabold text-red-600 font-mono">{lowStockItems.length} Items</h4>
-            <p className="text-[11px] text-red-600 font-semibold mt-1">● Below Safety Stock</p>
+            <div className="flex items-center justify-between text-[11px] text-red-600 font-semibold mt-1">
+              <span>● Below Safety Stock</span>
+              <span className="text-red-700 font-bold group-hover:underline text-[10px]">Review →</span>
+            </div>
           </div>
         </div>
 
-        {/* Expiry */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between">
+        {/* Expiry / Total Recorded */}
+        <div 
+          onClick={() => {
+            setDateRangeFilter('all');
+            setPaymentFilter('all');
+            setTimeFilter('all');
+            setSearchTerm('');
+            setActiveStatCard('all_bills');
+            billsTableRef.current?.scrollIntoView({ behavior: 'smooth' });
+          }}
+          className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 select-none group ${
+            activeStatCard === 'all_bills'
+              ? 'bg-orange-50/80 border-orange-500 ring-2 ring-orange-600 shadow-sm'
+              : 'bg-white border-slate-200 hover:border-orange-400 shadow-xs'
+          }`}
+          title="Click to view all recorded historical bills"
+        >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">TOTAL RECORDED</span>
-            <div className="w-7 h-7 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-orange-700 transition-colors">TOTAL RECORDED</span>
+            <div className="w-7 h-7 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center group-hover:bg-orange-100 transition-colors">
               <Clock className="w-4 h-4" />
             </div>
           </div>
           <div>
             <h4 className="text-xl font-extrabold text-slate-900 font-mono">{invoices.length} Bills</h4>
-            <p className="text-[11px] text-slate-500 mt-1">All time records</p>
+            <div className="flex items-center justify-between text-[11px] text-slate-500 mt-1">
+              <span>All time records</span>
+              <span className="text-orange-700 font-bold group-hover:underline text-[10px]">All bills →</span>
+            </div>
           </div>
         </div>
 
         {/* Status */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between">
+        <div 
+          onClick={() => setCurrentTab('settings')}
+          className="bg-white p-4 rounded-xl border border-slate-200 hover:border-emerald-500 shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer flex flex-col justify-between select-none group"
+          title="Click to view store settings and database synchronization"
+        >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">DISPENSARY STATUS</span>
-            <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-emerald-800 transition-colors">DISPENSARY STATUS</span>
+            <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
               <ShieldCheck className="w-4 h-4" />
             </div>
           </div>
           <div>
             <h4 className="text-xl font-extrabold text-teal-800 font-mono">ONLINE</h4>
-            <p className="text-[11px] text-emerald-600 font-semibold mt-1">Synced with Cloud</p>
+            <div className="flex items-center justify-between text-[11px] text-emerald-600 font-semibold mt-1">
+              <span>Synced with Cloud</span>
+              <span className="text-emerald-700 font-bold group-hover:underline text-[10px]">Settings →</span>
+            </div>
           </div>
         </div>
       </div>
 
+      {/* Active Stat Filter Banner */}
+      {activeStatCard && (
+        <div className="bg-teal-50 border border-teal-200 text-teal-900 px-4 py-2.5 rounded-xl flex items-center justify-between text-xs font-semibold shadow-xs animate-in fade-in duration-200">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-teal-600 animate-pulse" />
+            <span>
+              {activeStatCard === 'today_revenue' && `Active Filter: Today's Revenue Transactions (${filteredInvoices.length} bills, Rs. ${totalRevenue.toLocaleString('en-PK', { minimumFractionDigits: 2 })})`}
+              {activeStatCard === 'today_invoices' && `Active Filter: Today's Completed Invoices (${filteredInvoices.length} slips)`}
+              {activeStatCard === 'all_bills' && `Active Filter: All-Time Recorded Bills (${filteredInvoices.length} total)`}
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              setActiveStatCard(null);
+              setDateRangeFilter('all');
+              setPaymentFilter('all');
+              setTimeFilter('all');
+              setSearchTerm('');
+            }}
+            className="text-teal-800 hover:text-teal-950 font-bold underline cursor-pointer text-xs flex items-center gap-1"
+          >
+            <span>Clear Filter (Show All)</span>
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* FILTER & OLD BILL SEARCH PANEL */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-4 space-y-4">
+      <div ref={billsTableRef} className="bg-white rounded-xl border border-slate-200 shadow-xs p-4 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-teal-700" />
@@ -469,6 +620,149 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         )}
       </div>
+
+      {/* Barcode Scanner Modal */}
+      {isBarcodeScannerOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="p-4 bg-teal-800 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm font-bold">
+                <QrCode className="w-4 h-4 text-emerald-400" />
+                <span>Quick Scan Barcode / SKU Reader</span>
+              </div>
+              <button 
+                onClick={() => {
+                  setIsBarcodeScannerOpen(false);
+                  setScannedBarcode('');
+                  setScannedResult(null);
+                }} 
+                className="text-teal-200 hover:text-white cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="p-4 bg-slate-900 rounded-xl text-center space-y-2 border border-slate-800">
+                <div className="w-12 h-12 rounded-full bg-teal-900/50 border border-teal-500/30 text-teal-400 flex items-center justify-center mx-auto animate-pulse">
+                  <QrCode className="w-6 h-6" />
+                </div>
+                <p className="text-xs font-mono text-teal-300">Point USB Scanner or Type SKU / Barcode</p>
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-slate-700">Scan Input or Enter SKU</label>
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="Scan or type e.g. MED-PAN-500..."
+                  value={scannedBarcode}
+                  onChange={(e) => {
+                    const code = e.target.value;
+                    setScannedBarcode(code);
+                    const match = medicines.find(m => 
+                      m.sku.toLowerCase() === code.trim().toLowerCase() ||
+                      m.name.toLowerCase().includes(code.trim().toLowerCase())
+                    );
+                    setScannedResult(match || null);
+                  }}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm font-mono text-slate-900 font-bold focus:outline-none focus:border-teal-700"
+                />
+              </div>
+
+              {scannedResult ? (
+                <div className="p-3 bg-teal-50 border border-teal-200 rounded-xl space-y-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h4 className="font-bold text-xs text-slate-900">{scannedResult.name}</h4>
+                      <p className="text-[10px] text-slate-500">{scannedResult.genericName} • SKU: {scannedResult.sku}</p>
+                    </div>
+                    <span className="font-mono font-extrabold text-teal-800 text-xs">Rs. {scannedResult.retailPrice.toFixed(2)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] border-t border-teal-100 pt-2 text-slate-600">
+                    <span>Stock: <strong>{scannedResult.stock} {scannedResult.unit}</strong></span>
+                    <button
+                      onClick={() => {
+                        setIsBarcodeScannerOpen(false);
+                        onOpenQuickSale();
+                      }}
+                      className="bg-teal-800 hover:bg-teal-900 text-white font-bold px-3 py-1 rounded text-xs cursor-pointer shadow-xs"
+                    >
+                      Sell in POS →
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                scannedBarcode.trim() && (
+                  <p className="text-xs text-slate-400 text-center py-2">
+                    No medicine found matching "{scannedBarcode}"
+                  </p>
+                )
+              )}
+
+              <div className="pt-2 flex justify-end">
+                <button
+                  onClick={() => {
+                    setIsBarcodeScannerOpen(false);
+                    setScannedBarcode('');
+                    setScannedResult(null);
+                  }}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-xs font-bold cursor-pointer"
+                >
+                  Close Scanner
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal: Reset Today's Revenue */}
+      {isResetModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full overflow-hidden p-6 space-y-4">
+            <div className="flex items-center gap-3 text-amber-700">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
+                <RotateCcw className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base text-slate-900">Reset Today's Revenue?</h3>
+                <p className="text-[11px] text-amber-800 font-semibold">Store Register Maintenance</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              This will clear today's sales slips from Firestore and reset your daily revenue total on the Dashboard back to <strong>Rs. 0.00</strong>.
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsResetModalOpen(false)}
+                disabled={isProcessing}
+                className="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setIsProcessing(true);
+                  if (onResetDailyData) {
+                    await onResetDailyData();
+                  }
+                  setIsProcessing(false);
+                  setIsResetModalOpen(false);
+                }}
+                disabled={isProcessing}
+                className="px-4 py-2.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-sm cursor-pointer disabled:opacity-60"
+              >
+                {isProcessing ? 'Resetting Register...' : 'Yes, Reset Today\'s Revenue'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

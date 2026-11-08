@@ -18,7 +18,7 @@ export interface Medicine {
   genericName: string;
   manufacturer: string;
   sku: string;
-  category: 'Antibiotic (Rx)' | 'Analgesic (OTC)' | 'Cold Chain (Rx)' | 'Gastroenterology' | 'Surgical Consumable' | 'Surgical & Wound' | 'Antacid' | 'Protective';
+  category: string;
   shelfLocation: string;
   batchNumber: string;
   stock: number;

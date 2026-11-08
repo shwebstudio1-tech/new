@@ -14,15 +14,16 @@ import {
   ChevronRight,
   Plus
 } from 'lucide-react';
-import { Medicine, Invoice } from '../types';
+import { Medicine, Invoice, TabType } from '../types';
 
 interface AiAssistantViewProps {
   medicines: Medicine[];
   invoices: Invoice[];
   onOpenAddMedicine: () => void;
+  setCurrentTab: (tab: TabType) => void;
 }
 
-export const AiAssistantView: React.FC<AiAssistantViewProps> = ({ medicines, invoices, onOpenAddMedicine }) => {
+export const AiAssistantView: React.FC<AiAssistantViewProps> = ({ medicines, invoices, onOpenAddMedicine, setCurrentTab }) => {
   const [chatInput, setChatInput] = useState('');
   const lowStock = medicines.filter(m => m.stock <= m.minStock);
   const totalRev = invoices.reduce((s, i) => s + i.totalAmount, 0);
@@ -146,55 +147,83 @@ export const AiAssistantView: React.FC<AiAssistantViewProps> = ({ medicines, inv
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div 
+          onClick={() => setCurrentTab('inventory')}
+          className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-red-500 transition-all cursor-pointer flex flex-col justify-between group"
+          title="Click to view low stock alerts in inventory"
+        >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">STOCKOUT ALERTS</span>
-            <div className="w-7 h-7 rounded-lg bg-red-50 text-red-600 flex items-center justify-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-red-700">STOCKOUT ALERTS</span>
+            <div className="w-7 h-7 rounded-lg bg-red-50 text-red-600 flex items-center justify-center group-hover:bg-red-100">
               <ShieldCheck className="w-4 h-4" />
             </div>
           </div>
           <div>
             <h4 className="text-xl font-extrabold text-red-600 font-mono">{lowStock.length} Active Alerts</h4>
-            <p className="text-[11px] text-slate-500 mt-1">Real-time inventory watch</p>
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-[11px] text-slate-500">Real-time inventory watch</p>
+              <span className="text-[10px] font-bold text-red-700 group-hover:underline">Review →</span>
+            </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div 
+          onClick={() => setCurrentTab('inventory')}
+          className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-teal-500 transition-all cursor-pointer flex flex-col justify-between group"
+          title="Click to view full medicine catalog"
+        >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">STORE INVENTORY</span>
-            <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-teal-800">STORE INVENTORY</span>
+            <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center group-hover:bg-teal-100">
               <TrendingUp className="w-4 h-4" />
             </div>
           </div>
           <div>
             <h4 className="text-xl font-extrabold text-slate-900 font-mono">{medicines.length} Products</h4>
-            <p className="text-[11px] text-teal-700 font-semibold mt-1">Managed in Firestore</p>
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-[11px] text-teal-700 font-semibold">Managed in Firestore</p>
+              <span className="text-[10px] font-bold text-teal-700 group-hover:underline">Catalog →</span>
+            </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div 
+          onClick={() => setCurrentTab('reports')}
+          className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-teal-500 transition-all cursor-pointer flex flex-col justify-between group"
+          title="Click to view financial audit reports"
+        >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">TOTAL SALES REVENUE</span>
-            <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-teal-800">TOTAL SALES REVENUE</span>
+            <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center group-hover:bg-teal-100">
               <Activity className="w-4 h-4" />
             </div>
           </div>
           <div>
             <h4 className="text-xl font-extrabold text-teal-800 font-mono">Rs.{totalRev.toFixed(2)}</h4>
-            <p className="text-[11px] text-slate-500 mt-1">{invoices.length} transactions audited</p>
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-[11px] text-slate-500">{invoices.length} transactions audited</p>
+              <span className="text-[10px] font-bold text-teal-700 group-hover:underline">Audit →</span>
+            </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div 
+          onClick={() => setCurrentTab('settings')}
+          className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-emerald-500 transition-all cursor-pointer flex flex-col justify-between group"
+          title="Click to view system status and settings"
+        >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">AI STATUS</span>
-            <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-emerald-800">AI STATUS</span>
+            <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center group-hover:bg-emerald-100">
               <Sparkles className="w-4 h-4" />
             </div>
           </div>
           <div>
             <h4 className="text-xl font-extrabold text-slate-900 font-mono">Active Copilot</h4>
-            <p className="text-[11px] text-slate-500 mt-1">Ready for owner queries</p>
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-[11px] text-slate-500">Ready for owner queries</p>
+              <span className="text-[10px] font-bold text-emerald-700 group-hover:underline">Settings →</span>
+            </div>
           </div>
         </div>
       </div>
