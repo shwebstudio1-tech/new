@@ -205,15 +205,6 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({ invoice, onC
             <span>TOTAL (PKR):</span>
             <span>Rs.{invoice.totalAmount.toFixed(2)}</span>
           </div>
-          
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#475569', marginBottom: '4px' }}>
-            <span>Cash Tendered:</span>
-            <span style={{ fontWeight: 700 }}>Rs.{amountTendered.toFixed(2)}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#047857' }}>
-            <span>Change/Return:</span>
-            <span style={{ fontWeight: 800 }}>Rs.{changeReturned.toFixed(2)}</span>
-          </div>
         </div>
 
         {/* Footer */}

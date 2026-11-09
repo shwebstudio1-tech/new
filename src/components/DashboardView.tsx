@@ -245,19 +245,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Revenue */}
         <div 
           onClick={() => {
-            setDateRangeFilter('today');
-            setPaymentFilter('all');
-            setTimeFilter('all');
-            setSearchTerm('');
-            setActiveStatCard('today_revenue');
-            billsTableRef.current?.scrollIntoView({ behavior: 'smooth' });
+            setCurrentTab('sales');
           }}
-          className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 select-none group ${
-            activeStatCard === 'today_revenue' && dateRangeFilter === 'today'
-              ? 'bg-teal-50/80 border-teal-600 ring-2 ring-teal-700 shadow-sm'
-              : 'bg-white border-slate-200 hover:border-teal-500 shadow-xs'
-          }`}
-          title="Click to view today's revenue transactions"
+          className="p-4 rounded-xl border bg-white border-slate-200 hover:border-teal-500 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer flex flex-col justify-between select-none group shadow-xs"
+          title="Click to view all sales and revenue"
         >
           <div className="flex items-center justify-between mb-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-teal-800 transition-colors">TODAY'S REVENUE</span>
@@ -284,7 +275,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <h4 className="text-xl font-extrabold text-slate-900 font-mono">Rs.{totalRevenue.toLocaleString('en-PK', { minimumFractionDigits: 2 })}</h4>
             <div className="flex items-center justify-between text-[11px] text-slate-500 mt-1">
               <span>Today's volume</span>
-              <span className="text-teal-700 font-bold group-hover:underline text-[10px]">Filter bills →</span>
+              <span className="text-teal-700 font-bold group-hover:underline text-[10px]">View Sales →</span>
             </div>
           </div>
         </div>
@@ -292,18 +283,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Invoices */}
         <div 
           onClick={() => {
-            setDateRangeFilter('today');
-            setPaymentFilter('all');
-            setTimeFilter('all');
-            setSearchTerm('');
-            setActiveStatCard('today_invoices');
-            billsTableRef.current?.scrollIntoView({ behavior: 'smooth' });
+            setCurrentTab('sales');
           }}
-          className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 select-none group ${
-            activeStatCard === 'today_invoices' && dateRangeFilter === 'today'
-              ? 'bg-teal-50/80 border-teal-600 ring-2 ring-teal-700 shadow-sm'
-              : 'bg-white border-slate-200 hover:border-teal-500 shadow-xs'
-          }`}
+          className="p-4 rounded-xl border bg-white border-slate-200 hover:border-teal-500 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer flex flex-col justify-between select-none group shadow-xs"
           title="Click to view today's completed invoices"
         >
           <div className="flex items-center justify-between mb-2">
@@ -316,7 +298,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <h4 className="text-xl font-extrabold text-slate-900 font-mono">{totalTxns} Txns</h4>
             <div className="flex items-center justify-between text-[11px] text-slate-500 mt-1">
               <span>Completed slips</span>
-              <span className="text-teal-700 font-bold group-hover:underline text-[10px]">View slips →</span>
+              <span className="text-teal-700 font-bold group-hover:underline text-[10px]">View Slips →</span>
             </div>
           </div>
         </div>
@@ -366,18 +348,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Expiry / Total Recorded */}
         <div 
           onClick={() => {
-            setDateRangeFilter('all');
-            setPaymentFilter('all');
-            setTimeFilter('all');
-            setSearchTerm('');
-            setActiveStatCard('all_bills');
-            billsTableRef.current?.scrollIntoView({ behavior: 'smooth' });
+            setCurrentTab('sales');
           }}
-          className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 select-none group ${
-            activeStatCard === 'all_bills'
-              ? 'bg-orange-50/80 border-orange-500 ring-2 ring-orange-600 shadow-sm'
-              : 'bg-white border-slate-200 hover:border-orange-400 shadow-xs'
-          }`}
+          className="p-4 rounded-xl border bg-white border-slate-200 hover:border-orange-400 shadow-xs hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer flex flex-col justify-between select-none group"
           title="Click to view all recorded historical bills"
         >
           <div className="flex items-center justify-between mb-2">

@@ -575,9 +575,7 @@ export default function App() {
       totalAmount,
       paymentMethod: saleDetails?.paymentMethod || 'CASH',
       cashier: shift.pharmacistName,
-      status: 'COMPLETED',
-      amountTendered: totalAmount + 100,
-      changeReturned: 100
+      status: 'COMPLETED'
     };
 
     try {

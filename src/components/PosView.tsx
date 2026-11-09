@@ -135,7 +135,6 @@ export const PosView: React.FC<PosViewProps> = ({
   const subtotal = cart.reduce((acc, item) => acc + (item.medicine.retailPrice * item.quantity), 0);
   const tax = (subtotal - discountAmount) * (taxRate / 100);
   const netTotal = Math.max(0, subtotal - discountAmount + tax);
-  const changeDue = Math.max(0, cashTendered - netTotal);
 
   const filteredMedicines = selectedCategory === 'ALL' 
     ? medicines 
@@ -296,7 +295,7 @@ export const PosView: React.FC<PosViewProps> = ({
         </div>
 
         {/* Right 1 Col: Cart, Customer Details & Unified Save & Print Checkout */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between overflow-hidden">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between overflow-hidden min-h-[600px]">
           {/* Cart Header */}
           <div className="p-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
             <h3 className="text-sm font-bold text-slate-900">Patient Invoice Cart</h3>
@@ -359,7 +358,7 @@ export const PosView: React.FC<PosViewProps> = ({
           </div>
 
           {/* Cart Items List */}
-          <div className="p-3.5 flex-1 overflow-y-auto max-h-[260px] divide-y divide-slate-100 space-y-2">
+          <div className="p-3.5 flex-1 overflow-y-auto divide-y divide-slate-100 space-y-2">
             {cart.length === 0 ? (
               <div className="py-12 text-center text-slate-400 text-xs">
                 Cart is empty. Click any medicine on the left to start billing.
@@ -437,36 +436,12 @@ export const PosView: React.FC<PosViewProps> = ({
           </div>
 
           {/* Net Payable Amount */}
-          <div className="p-3.5 bg-teal-900 text-white flex items-center justify-between">
+          <div className="p-4 bg-teal-900 text-white flex items-center justify-between">
             <div>
               <p className="text-[10px] text-teal-300 uppercase font-bold">NET PAYABLE AMOUNT</p>
               <p className="text-[10px] text-teal-200/80">INCLUDES DISCOUNT & TAX</p>
             </div>
             <h3 className="text-2xl font-extrabold font-mono text-white">Rs.{netTotal.toFixed(2)}</h3>
-          </div>
-
-          {/* Fast Cash Tender & Change Due */}
-          <div className="p-3.5 space-y-2.5 bg-white border-t border-slate-100">
-            <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-              <span>CASH TENDERED:</span>
-              <span className="text-emerald-600 font-mono">CHANGE DUE: Rs.{changeDue.toFixed(2)}</span>
-            </div>
-
-            <div className="grid grid-cols-5 gap-1.5 text-xs font-mono font-bold">
-              {[50, 100, 500, 1000, 5000].map((amt) => (
-                <button
-                  key={amt}
-                  onClick={() => setCashTendered(amt)}
-                  className={`py-1.5 rounded-lg border transition-all ${
-                    cashTendered === amt 
-                      ? 'bg-teal-50 border-teal-700 text-teal-900 shadow-xs' 
-                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  Rs.{amt}
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* POS ACTION BUTTONS: SAVE & PRINT */}
