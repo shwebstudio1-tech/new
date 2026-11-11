@@ -18,8 +18,24 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({ invoice, onC
   const storeLicense = localStorage.getItem('talha_store_license') || 'DRAP-PK-99';
   const storeLogo = localStorage.getItem('talha_store_logo');
 
+  React.useEffect(() => {
+    if (invoice) {
+      // Reduced delay to ensure faster auto-print trigger
+      const timer = setTimeout(() => {
+        requestAnimationFrame(() => {
+          window.print();
+        });
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [invoice?.id]);
+
   const handlePrint = () => {
-    window.print();
+    // Ensure the content is focused and ready for printing
+    setTimeout(() => {
+      window.focus();
+      window.print();
+    }, 50);
   };
 
   const handleSaveAsPdf = async () => {
@@ -53,11 +69,6 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({ invoice, onC
     pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight, undefined, 'FAST');
     pdf.save(`Invoice_${invoice.invoiceNumber}.pdf`);
   };
-
-  const grossSubtotal = invoice.items.reduce((acc, item) => acc + (item.price * item.qty), 0);
-  const discountAmount = Math.max(0, grossSubtotal - invoice.totalAmount);
-  const amountTendered = invoice.amountTendered || invoice.totalAmount;
-  const changeReturned = invoice.changeReturned || Math.max(0, amountTendered - invoice.totalAmount);
 
   return (
     <div className="fixed inset-0 z-[9999] bg-slate-950/80 backdrop-blur-xs flex flex-col items-center justify-start overflow-y-auto p-4 sm:p-6 print:!block print:!static print:!bg-white print:!overflow-visible">
@@ -202,7 +213,7 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({ invoice, onC
         {/* Totals Section */}
         <div style={{ marginBottom: '24px', padding: '0 8px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: 900, color: '#0f172a', marginBottom: '12px' }}>
-            <span>TOTAL (PKR):</span>
+            <span>TOTAL PRICE (PKR):</span>
             <span>Rs.{invoice.totalAmount.toFixed(2)}</span>
           </div>
         </div>

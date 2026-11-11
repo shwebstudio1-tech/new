@@ -158,6 +158,9 @@ export default function App() {
   }, []);
 
   const [storeAddress, setStoreAddress] = useState<string>('Opposite DHQ Hospital, Punjab');
+  const [revenueResetAt, setRevenueResetAt] = useState<number>(() => {
+    return parseInt(localStorage.getItem('talha_revenue_reset_at') || '0');
+  });
 
   useEffect(() => {
     const unsubStoreSettings = onSnapshot(doc(db, 'settings', 'store'), (snapshot) => {
@@ -176,7 +179,20 @@ export default function App() {
       console.log('Using default store address', error);
     });
 
-    return () => unsubStoreSettings();
+    const unsubRevenueSettings = onSnapshot(doc(db, 'settings', 'revenue'), (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        if (data.lastResetAt) {
+          setRevenueResetAt(data.lastResetAt);
+          localStorage.setItem('talha_revenue_reset_at', data.lastResetAt.toString());
+        }
+      }
+    });
+
+    return () => {
+      unsubStoreSettings();
+      unsubRevenueSettings();
+    };
   }, []);
 
   const handleUpdateStoreAddress = async (newAddress: string): Promise<boolean> => {
@@ -490,19 +506,20 @@ export default function App() {
 
   const handleResetDailyData = async () => {
     try {
-      const snap = await getDocs(collection(db, 'invoices'));
-      if (!snap.empty) {
-        const deletePromises = snap.docs.map(docSnap => deleteDoc(doc(db, 'invoices', docSnap.id)));
-        await Promise.all(deletePromises);
-      }
-      setInvoices([]);
-      setShift(prev => ({ ...prev, drawerCash: 0 }));
-      setToast({ type: 'success', message: "SUCCESS: Today's revenue register reset to Rs. 0.00!" });
+      const resetTimestamp = Date.now();
+      localStorage.setItem('talha_revenue_reset_at', resetTimestamp.toString());
+      
+      // Also sync to firestore if possible
+      await setDoc(doc(db, 'settings', 'revenue'), {
+        lastResetAt: resetTimestamp,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+
+      setToast({ type: 'success', message: "SUCCESS: Dashboard revenue counter has been reset to Rs. 0.00 for this session!" });
     } catch (err) {
       console.error("Reset revenue error:", err);
-      setInvoices([]);
-      setShift(prev => ({ ...prev, drawerCash: 0 }));
-      setToast({ type: 'success', message: "Revenue register reset to Rs. 0.00!" });
+      localStorage.setItem('talha_revenue_reset_at', Date.now().toString());
+      setToast({ type: 'success', message: "Dashboard revenue display reset!" });
     }
   };
 
@@ -694,6 +711,7 @@ export default function App() {
                 onOpenEditMedicine={(med) => setEditingMedicine(med)}
                 onResetDailyData={handleResetDailyData}
                 onWipeDatabase={handleWipeDatabase}
+                revenueResetAt={revenueResetAt}
               />
             )}
 

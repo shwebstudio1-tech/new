@@ -50,8 +50,6 @@ export interface Invoice {
   paymentMethod: 'CASH' | 'VISA CARD' | 'MOBILE PAY' | 'CREDIT / A/R';
   cashier: string;
   status: 'COMPLETED' | 'REFUNDED' | 'PENDING';
-  amountTendered?: number;
-  changeReturned?: number;
 }
 
 export interface ShiftInfo {

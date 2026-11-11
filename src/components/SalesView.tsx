@@ -34,6 +34,8 @@ export const SalesView: React.FC<SalesViewProps> = ({
   const [selectedAuditDate, setSelectedAuditDate] = useState<string>('today');
   const [salesFilter, setSalesFilter] = useState<'ALL' | 'TODAY' | 'CASH_TODAY' | 'CREDIT_TODAY'>('ALL');
 
+  const [isPrinting, setIsPrinting] = useState<string | null>(null);
+
   useEffect(() => {
     if (invoices.length > 0 && (!selectedInvoice || !invoices.some(i => i.id === selectedInvoice.id))) {
       setSelectedInvoice(invoices[0]);
@@ -288,6 +290,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
                       <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
                         {displayedInvoices.map((inv) => {
                           const isSelected = selectedInvoice?.id === inv.id;
+                          const isBtnPrinting = isPrinting === inv.id;
                           return (
                             <tr 
                               key={inv.id}
@@ -302,15 +305,20 @@ export const SalesView: React.FC<SalesViewProps> = ({
                               <td className="p-3.5 font-mono font-extrabold text-slate-900">Rs.{inv.totalAmount.toFixed(2)}</td>
                               <td className="p-3.5 pr-4 text-right">
                                 <button
-                                  onClick={(e) => {
+                                  onClick={async (e) => {
                                     e.stopPropagation();
                                     setSelectedInvoice(inv);
-                                    onPrintInvoice(inv);
+                                    setIsPrinting(inv.id);
+                                    await onPrintInvoice(inv);
+                                    setTimeout(() => setIsPrinting(null), 2000);
                                   }}
-                                  className="inline-flex items-center gap-1 bg-teal-800 hover:bg-teal-900 text-white px-2.5 py-1 rounded text-[10px] font-bold cursor-pointer"
+                                  disabled={isBtnPrinting}
+                                  className={`inline-flex items-center gap-1 bg-teal-800 hover:bg-teal-900 text-white px-2.5 py-1 rounded text-[10px] font-bold cursor-pointer transition-all ${
+                                    isBtnPrinting ? 'opacity-70 scale-95' : ''
+                                  }`}
                                 >
-                                  <Printer className="w-3 h-3" />
-                                  <span>Print</span>
+                                  <Printer className={`w-3 h-3 ${isBtnPrinting ? 'animate-pulse' : ''}`} />
+                                  <span>{isBtnPrinting ? 'Printing...' : 'Print'}</span>
                                 </button>
                               </td>
                             </tr>
@@ -358,7 +366,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
                   </div>
 
                   <div className="flex justify-between items-center bg-teal-900 text-white p-2.5 rounded font-sans">
-                    <span className="text-xs font-bold">TOTAL AMOUNT:</span>
+                    <span className="text-xs font-bold">TOTAL PRICE:</span>
                     <span className="text-lg font-extrabold font-mono">Rs.{selectedInvoice.totalAmount.toFixed(2)}</span>
                   </div>
 

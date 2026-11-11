@@ -60,6 +60,8 @@ export const PosView: React.FC<PosViewProps> = ({
   const [customerCnic, setCustomerCnic] = useState<string>('');
   const [taxRate, setTaxRate] = useState<number>(0); // 0% default tax
   const [discountAmount, setDiscountAmount] = useState<number>(0);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const posCategories = React.useMemo(() => {
     const defaults = ['ANTIBIOTIC', 'ANALGESIC', 'COLD CHAIN', 'SURGICAL', 'GASTROENTEROLOGY', 'ANTACID', 'SYRUP', 'INJECTION'];
@@ -438,7 +440,7 @@ export const PosView: React.FC<PosViewProps> = ({
           {/* Net Payable Amount */}
           <div className="p-4 bg-teal-900 text-white flex items-center justify-between">
             <div>
-              <p className="text-[10px] text-teal-300 uppercase font-bold">NET PAYABLE AMOUNT</p>
+              <p className="text-[10px] text-teal-300 uppercase font-bold">TOTAL PRICE (PKR)</p>
               <p className="text-[10px] text-teal-200/80">INCLUDES DISCOUNT & TAX</p>
             </div>
             <h3 className="text-2xl font-extrabold font-mono text-white">Rs.{netTotal.toFixed(2)}</h3>
@@ -448,45 +450,77 @@ export const PosView: React.FC<PosViewProps> = ({
           <div className="p-3.5 bg-slate-50 border-t border-slate-200 rounded-b-xl grid grid-cols-2 gap-3">
             <button
               type="button"
-              onClick={() => onCompleteSale(false, {
-                customerName,
-                customerPhone,
-                customerCnic,
-                paymentMethod,
-                discountAmount,
-                taxRate,
-                netTotal
-              })}
-              disabled={cart.length === 0}
+              onClick={async () => {
+                if (isProcessing) return;
+                setIsProcessing(true);
+                await onCompleteSale(false, {
+                  customerName,
+                  customerPhone,
+                  customerCnic,
+                  paymentMethod,
+                  discountAmount,
+                  taxRate,
+                  netTotal
+                });
+                setIsProcessing(false);
+                setShowSuccess(true);
+                setTimeout(() => setShowSuccess(false), 2000);
+              }}
+              disabled={cart.length === 0 || isProcessing}
               className={`font-bold py-3 px-3 rounded-xl transition-all flex items-center justify-center gap-2 text-xs border ${
-                cart.length === 0
+                cart.length === 0 || isProcessing
                   ? 'bg-slate-200 text-slate-400 border-slate-200 cursor-not-allowed'
                   : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-300 shadow-xs cursor-pointer'
               }`}
             >
-              <Save className="w-4 h-4 text-teal-700" />
-              <span>Save</span>
+              {showSuccess ? (
+                <>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 animate-in zoom-in" />
+                  <span className="text-emerald-700">Saved!</span>
+                </>
+              ) : (
+                <>
+                  <Save className={`w-4 h-4 ${isProcessing ? 'animate-spin' : 'text-teal-700'}`} />
+                  <span>{isProcessing ? 'Processing...' : 'Save'}</span>
+                </>
+              )}
             </button>
             <button
               type="button"
-              onClick={() => onCompleteSale(true, {
-                customerName,
-                customerPhone,
-                customerCnic,
-                paymentMethod,
-                discountAmount,
-                taxRate,
-                netTotal
-              })}
-              disabled={cart.length === 0}
+              onClick={async () => {
+                if (isProcessing) return;
+                setIsProcessing(true);
+                await onCompleteSale(true, {
+                  customerName,
+                  customerPhone,
+                  customerCnic,
+                  paymentMethod,
+                  discountAmount,
+                  taxRate,
+                  netTotal
+                });
+                setIsProcessing(false);
+                setShowSuccess(true);
+                setTimeout(() => setShowSuccess(false), 2000);
+              }}
+              disabled={cart.length === 0 || isProcessing}
               className={`font-bold py-3 px-3 rounded-xl transition-all flex items-center justify-center gap-2 text-xs shadow-md ${
-                cart.length === 0 
+                cart.length === 0 || isProcessing
                   ? 'bg-slate-300 text-slate-500 cursor-not-allowed' 
                   : 'bg-teal-800 hover:bg-teal-900 text-white cursor-pointer'
               }`}
             >
-              <Printer className="w-4 h-4" />
-              <span>Print</span>
+              {showSuccess ? (
+                <>
+                  <CheckCircle2 className="w-4 h-4 text-white animate-in zoom-in" />
+                  <span>Printed!</span>
+                </>
+              ) : (
+                <>
+                  <Printer className={`w-4 h-4 ${isProcessing ? 'animate-spin' : ''}`} />
+                  <span>{isProcessing ? 'Printing...' : 'Print'}</span>
+                </>
+              )}
             </button>
           </div>
         </div>

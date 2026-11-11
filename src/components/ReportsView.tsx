@@ -61,7 +61,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ invoices, customers, m
           <div>
             <h4 className="text-2xl font-extrabold text-slate-900 font-mono">{totalBillsToday} Bills</h4>
             <div className="flex items-center justify-between mt-1">
-              <p className="text-[11px] text-slate-500">Total volume: Rs. {totalRevenueToday.toLocaleString('en-PK')}</p>
+              <p className="text-[11px] text-slate-500">Today's Total Price: Rs. {totalRevenueToday.toLocaleString('en-PK')}</p>
               <span className="text-[10px] font-bold text-teal-700 group-hover:underline">View Sales →</span>
             </div>
           </div>

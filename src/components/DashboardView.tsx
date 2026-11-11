@@ -33,6 +33,7 @@ interface DashboardViewProps {
   onOpenEditMedicine?: (med: Medicine) => void;
   onResetDailyData?: () => void;
   onWipeDatabase?: () => void;
+  revenueResetAt?: number;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({ 
@@ -43,14 +44,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenAddMedicine,
   onOpenEditMedicine,
   onResetDailyData,
-  onWipeDatabase
+  onWipeDatabase,
+  revenueResetAt = 0
 }) => {
   // Invoice Filter & Search States
   const [searchTerm, setSearchTerm] = useState('');
   const [isBarcodeScannerOpen, setIsBarcodeScannerOpen] = useState(false);
   const [scannedBarcode, setScannedBarcode] = useState('');
   const [scannedResult, setScannedResult] = useState<Medicine | null>(null);
-  const [dateRangeFilter, setDateRangeFilter] = useState<'all' | 'today' | 'yesterday' | '7days' | 'month' | 'custom'>('all');
+  const [dateRangeFilter, setDateRangeFilter] = useState<'all' | 'today' | 'yesterday' | '7days' | 'month' | 'custom'>('today');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   const [timeFilter, setTimeFilter] = useState<'all' | 'morning' | 'evening' | 'night'>('all');
@@ -63,7 +65,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
 
   const todayStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-  const todaysInvoices = invoices.filter(inv => inv.date === todayStr);
+  
+  // Todays invoices for revenue calculation (affected by reset)
+  const todaysInvoices = invoices.filter(inv => {
+    if (inv.date !== todayStr) return false;
+    
+    // Extract timestamp from ID (inv-TIMESTAMP)
+    const invTimestamp = parseInt(inv.id.replace('inv-', ''));
+    if (!isNaN(invTimestamp) && invTimestamp < revenueResetAt) return false;
+    
+    return true;
+  });
   
   const totalRevenue = todaysInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
   const totalTxns = todaysInvoices.length;
@@ -89,6 +101,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     // Date filter logic
     if (dateRangeFilter === 'today') {
       if (inv.date !== todayStr) return false;
+      const invTimestamp = parseInt(inv.id.replace('inv-', ''));
+      if (!isNaN(invTimestamp) && invTimestamp < revenueResetAt) return false;
     } else if (dateRangeFilter === 'yesterday') {
       const yest = new Date();
       yest.setDate(yest.getDate() - 1);
@@ -274,7 +288,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div>
             <h4 className="text-xl font-extrabold text-slate-900 font-mono">Rs.{totalRevenue.toLocaleString('en-PK', { minimumFractionDigits: 2 })}</h4>
             <div className="flex items-center justify-between text-[11px] text-slate-500 mt-1">
-              <span>Today's volume</span>
+              <span>Today's Total Price</span>
               <span className="text-teal-700 font-bold group-hover:underline text-[10px]">View Sales →</span>
             </div>
           </div>
@@ -556,7 +570,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <th className="p-3.5">TIME & DATE</th>
                   <th className="p-3.5">CUSTOMER / PATIENT</th>
                   <th className="p-3.5">ITEMS DISPENSED</th>
-                  <th className="p-3.5">TOTAL AMOUNT</th>
+                  <th className="p-3.5">TOTAL PRICE</th>
                   <th className="p-3.5">PAYMENT METHOD</th>
                   <th className="p-3.5">STATUS</th>
                 </tr>
