@@ -28,13 +28,14 @@
 
 @media print {
   @page {
-    margin: 0;
+    margin: 10mm;
     size: auto;
   }
   body * {
     visibility: hidden;
   }
-  #printable-invoice-content, #printable-invoice-content * {
+  #printable-invoice-content, #printable-invoice-content *,
+  #printable-report-content, #printable-report-content * {
     visibility: visible;
   }
   #printable-invoice-content {
@@ -43,9 +44,17 @@
     top: 0;
     width: 80mm !important; /* Standard thermal width */
     margin: 0 auto;
-    padding: 10mm 5mm !important;
+    padding: 5mm !important;
     border: none !important;
     box-shadow: none !important;
+  }
+  #printable-report-content {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    margin: 0;
+    padding: 0;
   }
   body {
     margin: 0;

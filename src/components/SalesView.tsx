@@ -21,13 +21,15 @@ interface SalesViewProps {
   onOpenQuickSale: () => void;
   onPrintInvoice: (inv: Invoice) => void;
   setCurrentTab: (tab: TabType) => void;
+  setToast?: (toast: { type: 'success' | 'error' | 'info'; message: string } | null) => void;
 }
 
 export const SalesView: React.FC<SalesViewProps> = ({ 
   invoices, 
   onOpenQuickSale, 
   onPrintInvoice,
-  setCurrentTab 
+  setCurrentTab,
+  setToast
 }) => {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(invoices[0] || null);
   const [activeTab, setActiveTab] = useState<'ledger' | 'audit'>('ledger');
@@ -283,7 +285,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
                           <th className="p-3.5 pl-4">INVOICE #</th>
                           <th className="p-3.5">DATE & TIME</th>
                           <th className="p-3.5">CUSTOMER</th>
-                          <th className="p-3.5">TOTAL BILL</th>
+                          <th className="p-3.5">TOTAL PRICE</th>
                           <th className="p-3.5 text-right pr-4">ACTION</th>
                         </tr>
                       </thead>
@@ -307,6 +309,12 @@ export const SalesView: React.FC<SalesViewProps> = ({
                                 <button
                                   onClick={async (e) => {
                                     e.stopPropagation();
+                                    if (setToast) {
+                                      setToast({ 
+                                        type: 'info', 
+                                        message: 'Printing started... Please check your printer connection.' 
+                                      });
+                                    }
                                     setSelectedInvoice(inv);
                                     setIsPrinting(inv.id);
                                     await onPrintInvoice(inv);
@@ -371,7 +379,15 @@ export const SalesView: React.FC<SalesViewProps> = ({
                   </div>
 
                   <button 
-                    onClick={() => onPrintInvoice(selectedInvoice)}
+                    onClick={() => {
+                      if (setToast) {
+                        setToast({ 
+                          type: 'info', 
+                          message: 'Thermal printing started! Check connection if nothing happens.' 
+                        });
+                      }
+                      onPrintInvoice(selectedInvoice);
+                    }}
                     className="w-full flex items-center justify-center gap-2 bg-teal-800 hover:bg-teal-900 text-white py-3 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-sm"
                   >
                     <Printer className="w-4 h-4" />
@@ -450,7 +466,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
                           <th className="p-3">TIME</th>
                           <th className="p-3">PATIENT</th>
                           <th className="p-3">PAYMENT MODE</th>
-                          <th className="p-3 text-right">TOTAL</th>
+                          <th className="p-3 text-right">TOTAL PRICE</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">

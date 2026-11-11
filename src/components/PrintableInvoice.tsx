@@ -8,10 +8,11 @@ interface PrintableInvoiceProps {
   invoice: Invoice | null;
   onClose?: () => void;
   storeAddress: string;
+  setToast?: (toast: { type: 'success' | 'error' | 'info'; message: string } | null) => void;
 }
 
-export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({ invoice, onClose, storeAddress }) => {
-  if (!invoice) return null;
+export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({ invoice, onClose, storeAddress, setToast }) => {
+  const [isPrintingFeedback, setIsPrintingFeedback] = React.useState(false);
 
   const storeName = localStorage.getItem('talha_store_name') || 'TALHA SURGICAL & MEDICINE SHOP';
   const storePhone = localStorage.getItem('talha_store_phone') || '0300-1234567';
@@ -20,25 +21,41 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({ invoice, onC
 
   React.useEffect(() => {
     if (invoice) {
-      // Reduced delay to ensure faster auto-print trigger
+      // 1.5s delay allows the user to see the preview clearly before the print dialog opens
       const timer = setTimeout(() => {
         requestAnimationFrame(() => {
-          window.print();
+          handlePrint();
         });
-      }, 300);
+      }, 1500);
       return () => clearTimeout(timer);
     }
   }, [invoice?.id]);
 
   const handlePrint = () => {
+    if (isPrintingFeedback) return;
+    setIsPrintingFeedback(true);
+    
+    if (setToast) {
+      setToast({ 
+        type: 'info', 
+        message: 'Printing command sent! Agar print na hu tu check krain printer system say connect hai ya nahi.' 
+      });
+    }
+
     // Ensure the content is focused and ready for printing
     setTimeout(() => {
       window.focus();
       window.print();
+      
+      // Reset feedback after a delay to allow re-printing if needed
+      setTimeout(() => {
+        setIsPrintingFeedback(false);
+      }, 3000);
     }, 50);
   };
 
   const handleSaveAsPdf = async () => {
+    if (!invoice) return;
     const element = document.getElementById('printable-invoice-content');
     if (!element) return;
 
@@ -50,6 +67,35 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({ invoice, onC
       backgroundColor: '#ffffff',
       windowWidth: element.scrollWidth,
       windowHeight: element.scrollHeight,
+      onclone: (clonedDoc) => {
+        // Fix for stylesheets containing 'oklch'
+        const styleTags = clonedDoc.querySelectorAll('style');
+        styleTags.forEach(tag => {
+          tag.innerHTML = tag.innerHTML.replace(/oklch\([^)]+\)/g, 'black');
+        });
+
+        // Fix for inline styles
+        const originalElements = document.querySelectorAll('*');
+        const clonedElements = clonedDoc.querySelectorAll('*');
+        
+        for (let i = 0; i < Math.min(originalElements.length, clonedElements.length); i++) {
+          const original = originalElements[i] as HTMLElement;
+          const cloned = clonedElements[i] as HTMLElement;
+          
+          const computedStyle = window.getComputedStyle(original);
+          const colorProps = ['color', 'backgroundColor', 'borderColor', 'borderTopColor', 'borderRightColor', 'borderBottomColor', 'borderLeftColor', 'fill', 'stroke'];
+          
+          colorProps.forEach(prop => {
+            const val = computedStyle.getPropertyValue(prop);
+            if (val && val.includes('oklch')) {
+              // Force fallback
+              cloned.style.setProperty(prop, prop === 'backgroundColor' ? 'transparent' : 'black');
+            } else {
+              cloned.style.setProperty(prop, val);
+            }
+          });
+        }
+      }
     });
     
     const imgData = canvas.toDataURL('image/png', 1.0);
@@ -70,6 +116,8 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({ invoice, onC
     pdf.save(`Invoice_${invoice.invoiceNumber}.pdf`);
   };
 
+  if (!invoice) return null;
+
   return (
     <div className="fixed inset-0 z-[9999] bg-slate-950/80 backdrop-blur-xs flex flex-col items-center justify-start overflow-y-auto p-4 sm:p-6 print:!block print:!static print:!bg-white print:!overflow-visible">
       {/* Action Header Bar (Screen Only) */}
@@ -89,11 +137,25 @@ export const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({ invoice, onC
           <button
             type="button"
             onClick={handlePrint}
-            className="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer active:scale-95"
+            disabled={isPrintingFeedback}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer active:scale-95 ${
+              isPrintingFeedback 
+                ? 'bg-slate-700 text-teal-400 cursor-not-allowed opacity-80' 
+                : 'bg-teal-600 hover:bg-teal-500 text-white'
+            }`}
             title="Print this invoice directly"
           >
-            <Printer className="w-3.5 h-3.5" />
-            <span>Print</span>
+            {isPrintingFeedback ? (
+              <>
+                <CheckCircle2 className="w-3.5 h-3.5 animate-pulse" />
+                <span>Printing...</span>
+              </>
+            ) : (
+              <>
+                <Printer className="w-3.5 h-3.5" />
+                <span>Print</span>
+              </>
+            )}
           </button>
 
           {/* Save as PDF Button */}

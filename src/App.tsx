@@ -745,6 +745,7 @@ export default function App() {
                 onOpenQuickSale={() => setIsQuickSaleOpen(true)}
                 onPrintInvoice={handlePrint}
                 setCurrentTab={setCurrentTab}
+                setToast={setToast}
               />
             )}
 
@@ -794,6 +795,7 @@ export default function App() {
                 customers={customers}
                 medicines={medicines}
                 setCurrentTab={setCurrentTab}
+                setToast={setToast}
               />
             )}
 
@@ -838,7 +840,12 @@ export default function App() {
         />
 
       </div>
-      <PrintableInvoice invoice={printingInvoice} onClose={() => setPrintingInvoice(null)} storeAddress={storeAddress} />
+      <PrintableInvoice 
+        invoice={printingInvoice} 
+        onClose={() => setPrintingInvoice(null)} 
+        storeAddress={storeAddress} 
+        setToast={setToast}
+      />
 
       {/* Floating Toast Notification */}
       {toast && (
